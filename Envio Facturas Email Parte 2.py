@@ -14,6 +14,7 @@ from io import BytesIO
 from streamlit_option_menu import option_menu
 
 
+
 relatorio_envio = []
 
 # ========== Funções ==========
@@ -32,7 +33,7 @@ def enviar_email(destinatario, nome, cil, remetente, senha_app, caminho_anexo=No
     msg['From'] = remetente
     msg['To'] = destinatario
     msg['Subject'] = "Factura de Energia da Empresa EDEC"
-    corpo = f"Olá {nome},\n\nSeu CIL é: {cil}.\n\nEis a factura do mês correspondente ao seu local\n\nAtenciosamente,\nDepartamento Gestão de Contagens EDEC SUL"
+    corpo = f"Olá {nome},\n\nSeu CIL é: {cil}.\n\nEis a sua factura do mês correspondente para liquidação\nLembrando que o não pagamento resultará no corte do mesmo\n\nAtenciosamente,\nDireção Comercial EDEC SUL"
     msg.attach(MIMEText(corpo, 'plain'))
 
     if caminho_anexo and os.path.isfile(caminho_anexo):
