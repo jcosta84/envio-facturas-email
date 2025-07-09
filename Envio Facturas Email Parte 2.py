@@ -126,7 +126,7 @@ if aba == "Cadastro":
                 except Exception as e:
                     st.error(f"Erro ao cadastrar: {e}")
 
-#=========== Conhecimento ======
+#=========== Conhecimento ============
 if aba == "Para Conhecimento":
     st.header("📋 E-mails para Conhecimento (CC)")
 
@@ -203,8 +203,7 @@ if aba == "Para Conhecimento":
             except Exception as e:
                 st.error(f"Erro ao inserir dados: {e}")
    
-
-# ========== Consultar =========
+# ========== Consultar ===============
 if aba == "Consultar Cadastro":
     st.header("📋 Consultar Cliente")
     query = "SELECT * FROM clientes"
@@ -276,7 +275,7 @@ if aba == "Consultar Cadastro":
         except Exception as e:
             st.error(f"Erro ao salvar alterações: {e}")
 
-# ========== Envio =============
+# ========== Envio ===================
 elif aba == "Envio de E-mails":
     st.header("📤 Envio de E-mails")
 
