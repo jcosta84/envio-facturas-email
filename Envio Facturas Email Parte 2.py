@@ -57,7 +57,7 @@ st.title("📧 Gestão de Clientes e Envio de E-mails")
 with st.sidebar:
     aba = option_menu(
         menu_title="📋 Menu",
-        options=["Cadastro", "Consultar Cadastro","Envio de E-mails", "Relatório"],
+        options=["Cadastro", "Para Conhecimento","Consultar Cadastro","Envio de E-mails", "Relatório"],
         icons=["person-plus", "envelope", "bar-chart"],
         menu_icon="cast",
         default_index=0,
@@ -125,6 +125,84 @@ if aba == "Cadastro":
                             st.warning("Cliente com este CIL já está cadastrado.")
                 except Exception as e:
                     st.error(f"Erro ao cadastrar: {e}")
+
+#=========== Conhecimento ======
+if aba == "Para Conhecimento":
+    st.header("📋 E-mails para Conhecimento (CC)")
+
+    # 🔹 Carrega os dados
+    query = "SELECT * FROM cc_email"
+    cc = pd.read_sql(query, engine)
+
+    if cc.empty:
+        st.info("Nenhum e-mail CC cadastrado.")
+    else:
+        cc = cc.rename(columns={"id": "ID", "email_cc": "E-mail CC"})
+
+        # Adiciona coluna para seleção
+        cc["Selecionar"] = False
+
+        # 🔸 Edição dos dados
+        cc_editado = st.data_editor(
+            cc,
+            column_config={
+                "E-mail CC": st.column_config.TextColumn("E-mail CC"),
+                "Selecionar": st.column_config.CheckboxColumn("Selecionar para exclusão"),
+            },
+            use_container_width=True,
+            disabled=["ID"]
+        )
+
+        col1, col2 = st.columns(2)
+
+        # 🔸 Botão para excluir selecionados
+        with col1:
+            if st.button("🗑️ Excluir selecionados"):
+                selecionados = cc_editado[cc_editado["Selecionar"] == True]
+                if not selecionados.empty:
+                    try:
+                        with engine.begin() as conn:
+                            for _, row in selecionados.iterrows():
+                                conn.execute(text("DELETE FROM cc_email WHERE id = :id"), {"id": row["ID"]})
+                        st.success(f"{len(selecionados)} e-mail(s) excluído(s) com sucesso.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Erro ao excluir: {e}")
+                else:
+                    st.warning("Nenhum e-mail selecionado para exclusão.")
+
+        # 🔸 Botão para atualizar registros editados
+        with col2:
+            if st.button("💾 Salvar alterações"):
+                try:
+                    with engine.begin() as conn:
+                        for _, row in cc_editado.iterrows():
+                            conn.execute(
+                                text("UPDATE cc_email SET email_cc = :email WHERE id = :id"),
+                                {"email": row["E-mail CC"], "id": row["ID"]}
+                            )
+                    st.success("Alterações salvas com sucesso.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Erro ao atualizar: {e}")
+
+    st.markdown("---")
+
+    # 🔹 Formulário para novo e-mail CC
+    st.subheader("➕ Adicionar novo e-mail CC")
+    with st.form("form_cadastro"):
+        novo_email = st.text_input("Novo e-mail CC", key="novo_email_cc")
+        submit = st.form_submit_button("Submeter")
+
+        if submit:
+            try:
+                novo = pd.DataFrame({"email_cc": [novo_email]})
+                novo.to_sql("cc_email", con=engine, if_exists="append", index=False)
+                st.success("E-mail CC adicionado com sucesso!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Erro ao inserir dados: {e}")
+   
 
 # ========== Consultar =========
 if aba == "Consultar Cadastro":
@@ -204,6 +282,14 @@ elif aba == "Envio de E-mails":
 
     pdfs = st.file_uploader("Selecione os arquivos PDF", type="pdf", accept_multiple_files=True)
 
+    # Busca todos os e-mails para conhecimento (CC global)
+    try:
+        df_cc = pd.read_sql("SELECT email_cc FROM cc_email", engine)
+        emails_cc_globais = df_cc["email_cc"].dropna().tolist()
+    except Exception as e:
+        st.error(f"Erro ao carregar e-mails CC: {e}")
+        emails_cc_globais = []
+
     if st.button("Enviar E-mails") and engine:
         if not pdfs:
             st.error("Por favor, selecione pelo menos um arquivo PDF.")
@@ -230,13 +316,15 @@ elif aba == "Envio de E-mails":
                         with open(caminho_temp, "wb") as f:
                             f.write(pdf_file.getbuffer())
 
-                        status, msg = enviar_email(email, nome, cil, gmail_var, gmail_pwd_var, caminho_temp)
+                        # Enviar e-mail com CC global
+                        status, msg = enviar_email(email, nome, cil, gmail_var, gmail_pwd_var, caminho_temp, emails_cc_globais)
 
                     relatorio_envio.append((nome, email, cil, status, msg, datetime.datetime.now()))
                 else:
                     continue
 
                 progresso.progress((i + 1) / total)
+
             try:
                 with engine.begin() as conn:
                     for r in relatorio_envio:
