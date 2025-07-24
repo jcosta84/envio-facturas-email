@@ -113,35 +113,26 @@ class CadastroFrame(ctk.CTkFrame):
         self.form_frame = ctk.CTkFrame(self)
         self.form_frame.pack(pady=10)
 
-        # Variáveis do formulário
+        # Campos do formulário
         self.cil_var = tk.StringVar()
         self.nome_var = tk.StringVar()
-        self.email_vars = []
+        self.email_var = tk.StringVar()
 
-        # Campo CIL
         ctk.CTkLabel(self.form_frame, text="CIL").grid(row=0, column=0, padx=10, pady=5, sticky="e")
         self.cil_entry = ctk.CTkEntry(self.form_frame, textvariable=self.cil_var, width=250)
         self.cil_entry.grid(row=0, column=1, padx=10, pady=5)
 
-        # Campo Nome
         ctk.CTkLabel(self.form_frame, text="Nome").grid(row=1, column=0, padx=10, pady=5, sticky="e")
         self.nome_entry = ctk.CTkEntry(self.form_frame, textvariable=self.nome_var, width=250)
         self.nome_entry.grid(row=1, column=1, padx=10, pady=5)
 
-        # Campo de múltiplos e-mails
-        ctk.CTkLabel(self.form_frame, text="E-mails").grid(row=2, column=0, padx=10, pady=5, sticky="ne")
-        self.emails_frame = ctk.CTkFrame(self.form_frame)
-        self.emails_frame.grid(row=2, column=1, padx=10, pady=5, sticky="w")
+        ctk.CTkLabel(self.form_frame, text="Email").grid(row=2, column=0, padx=10, pady=5, sticky="e")
+        self.email_entry = ctk.CTkEntry(self.form_frame, textvariable=self.email_var, width=250)
+        self.email_entry.grid(row=2, column=1, padx=10, pady=5)
 
-        self.adicionar_email_campo()
-
-        self.btn_add_email = ctk.CTkButton(self.form_frame, text="➕ Adicionar outro e-mail", command=self.adicionar_email_campo)
-        self.btn_add_email.grid(row=3, column=1, padx=10, pady=5, sticky="w")
-
-        # Nome do PDF
-        ctk.CTkLabel(self.form_frame, text="Nome do PDF").grid(row=4, column=0, padx=10, pady=5, sticky="e")
+        ctk.CTkLabel(self.form_frame, text="Nome do PDF").grid(row=3, column=0, padx=10, pady=5, sticky="e")
         self.nome_pdf_label = ctk.CTkLabel(self.form_frame, text="", text_color="gray")
-        self.nome_pdf_label.grid(row=4, column=1, padx=10, pady=5, sticky="w")
+        self.nome_pdf_label.grid(row=3, column=1, padx=10, pady=5)
 
         # Botões
         self.btn_frame = ctk.CTkFrame(self)
@@ -153,12 +144,6 @@ class CadastroFrame(ctk.CTkFrame):
         # Atualiza nome do PDF quando CIL muda
         self.cil_var.trace_add("write", self.atualizar_nome_pdf)
 
-    def adicionar_email_campo(self):
-        email_var = tk.StringVar()
-        self.email_vars.append(email_var)
-        entry = ctk.CTkEntry(self.emails_frame, textvariable=email_var, width=250)
-        entry.pack(pady=2, anchor="w")
-
     def atualizar_nome_pdf(self, *args):
         cil = self.cil_var.get()
         nome_pdf = f"{cil}.pdf" if cil else ""
@@ -167,22 +152,17 @@ class CadastroFrame(ctk.CTkFrame):
     def limpar_campos(self):
         self.cil_var.set("")
         self.nome_var.set("")
+        self.email_var.set("")
         self.nome_pdf_label.configure(text="")
-
-        # Limpar campos de e-mail
-        for widget in self.emails_frame.winfo_children():
-            widget.destroy()
-        self.email_vars.clear()
-        self.adicionar_email_campo()
 
     def cadastrar_cliente(self):
         cil = self.cil_var.get().strip()
         nome = self.nome_var.get().strip()
+        email = self.email_var.get().strip()
         nome_pdf = f"{cil}.pdf"
-        emails = [var.get().strip() for var in self.email_vars if var.get().strip()]
 
-        if not cil or not nome or not emails:
-            messagebox.showwarning("Campos obrigatórios", "Por favor, preencha todos os campos e pelo menos um e-mail.")
+        if not cil or not nome or not email:
+            messagebox.showwarning("Campos obrigatórios", "Por favor, preencha todos os campos.")
             return
 
         try:
@@ -190,28 +170,18 @@ class CadastroFrame(ctk.CTkFrame):
                 result = conn.execute(
                     text("SELECT COUNT(*) FROM clientes WHERE cil = :cil"),
                     {"cil": cil}
-                ).fetchone()
-                count = list(result)[0] if result else 0
+                )
+                count = result.scalar()
 
                 if count > 0:
                     messagebox.showwarning("Duplicado", "Cliente com este CIL já está cadastrado.")
-                    return
-
-                # Insere na tabela clientes
-                conn.execute(
-                    text("INSERT INTO clientes (cil, nome, email, arquivo_anexo) VALUES (:cil, :nome, '', :anexo)"),
-                    {"cil": cil, "nome": nome, "anexo": nome_pdf}
-                )
-
-                # Insere e-mails múltiplos
-                for email in emails:
+                else:
                     conn.execute(
-                        text("INSERT INTO emails_cliente (cil, email) VALUES (:cil, :email)"),
-                        {"cil": cil, "email": email}
+                        text("INSERT INTO clientes (cil, nome, email, arquivo_anexo) VALUES (:cil, :nome, :email, :anexo)"),
+                        {"cil": cil, "nome": nome, "email": email, "anexo": nome_pdf}
                     )
-
-            messagebox.showinfo("Sucesso", "Cliente e e-mails cadastrados com sucesso!")
-            self.limpar_campos()
+                    messagebox.showinfo("Sucesso", "Cliente cadastrado com sucesso!")
+                    self.limpar_campos()
 
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao cadastrar: {e}")
