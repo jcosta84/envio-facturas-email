@@ -1,0 +1,8 @@
+streamlit
+pandas
+sqlalchemy
+pyodbc
+reportlab
+streamlit-option-menu
+pymysql
+psycopg2-binary
