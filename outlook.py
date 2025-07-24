@@ -19,14 +19,19 @@ relatorio_envio = []
 
 # ========== Funções ==========
 
-def get_engine(server, database, username, password):
-    try:
-        connection_string = f"mssql+pyodbc://{username}:{password}@{server}/{database}?driver=ODBC+Driver+17+for+SQL+Server"
-        engine = create_engine(connection_string)
-        return engine
-    except Exception as e:
-        st.error(f"Erro na conexão com o banco: {e}")
-        return None
+def get_engine(host, database, username, password, port="1433"):
+        from urllib.parse import quote_plus
+        try:
+            password_enconde = quote_plus(password)
+            connection_url = (
+                f"mssql+pyodbc://{username}:{password_enconde}@{host},{port}/{database}"
+                "?driver=ODBC+Driver+17+for+SQL+Server"
+            )
+            engine = create_engine(connection_url)
+            return engine
+        except Exception as e:
+            
+            return None
 
 def enviar_email(destinatario, nome, cil, remetente, senha_app, caminho_anexo=None):
     msg = MIMEMultipart()
@@ -89,14 +94,16 @@ with st.sidebar:
 
 # Configuração
 #st.sidebar.expander("⚙️ Configuração do sistema")
-server_var ="192.168.52.180,1433"
-db_var = "factura_email"
-user_var = "sa"
-pwd_var = "loucoste9850053"
+host="192.168.52.180"
+port="1433"
+database="factura_email"
+username="sa"
+password="loucoste9850053"
 gmail_var = "cpjcosta30@gmail.com"
 gmail_pwd_var = "ilfr gubf rcfr tyro"
 
-engine = get_engine(server_var, db_var, user_var, pwd_var)
+engine = get_engine(host, database, username, password)
+
 
 
 # ========== Cadastro ==========
@@ -130,8 +137,8 @@ if aba == "Cadastro":
                 try:
                     with engine.begin() as conn:
                         result = conn.execute(
-                            text("SELECT COUNT(*) FROM clientes WHERE cil = :cil"),
-                            {"cil": cil}
+                            text("SELECT COUNT(*) FROM clientes WHERE cil = :cil AND email = :email"),
+                            {"cil": cil, "email": email}
                         )
                         count = result.scalar()
                         if count == 0:
