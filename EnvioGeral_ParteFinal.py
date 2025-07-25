@@ -14,6 +14,7 @@ from io import BytesIO
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from tkinter import ttk
+import tkinter.filedialog as fd
 
 
 # ========== Configurações iniciais ===========
@@ -400,14 +401,22 @@ class EnvioFrame(ctk.CTkFrame):
         self.status_box.pack(pady=10)
 
     def selecionar_pdfs(self):
-        arquivos = filedialog.askopenfilenames(filetypes=[("PDF files", "*.pdf")])
-        self.pdf_dict.clear()
-        nomes = []
-        for caminho in arquivos:
-            nome = os.path.basename(caminho)
-            self.pdf_dict[nome] = caminho
-            nomes.append(nome)
-        self.arquivos_label.configure(text=f"{len(nomes)} arquivo(s) selecionado(s)")
+        
+        """Selecionar diretório contendo arquivos PDF"""
+        self.pdfs = filedialog.askdirectory(title="Selecionar diretório")
+        if self.pdfs:
+            print(f"Diretório selecionado: {self.pdfs}")
+            # Lista os PDFs do diretório e atualiza a label e dicionário
+            self.pdf_dict.clear()
+            nomes = []
+            for nome_arquivo in os.listdir(self.pdfs):
+                if nome_arquivo.lower().endswith('.pdf'):
+                    caminho_completo = os.path.join(self.pdfs, nome_arquivo)
+                    self.pdf_dict[nome_arquivo] = caminho_completo
+                    nomes.append(nome_arquivo)
+            self.arquivos_label.configure(text=f"{len(nomes)} arquivo(s) PDF encontrado(s)")
+
+
 
     def enviar_em_lote(self):
         if not self.pdf_dict:
@@ -455,8 +464,17 @@ class EnvioFrame(ctk.CTkFrame):
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao salvar relatório: {e}")
 
+    def obter_corpo_padrao(self):
+        with self.engine.connect() as conn:
+            result = conn.execute(text("SELECT conteudo FROM corpo_email WHERE id = 1"))
+            row = result.fetchone()
+            return row[0] if row else ""
+    
     def enviar_email(self, destinatario, nome, cil, caminho_anexo, cc_list=None):
         cc_list = cc_list or []
+
+        #buscar coprp de texto
+        corpo_padrao = self.obter_corpo_padrao()
 
         msg = MIMEMultipart()
         msg['From'] = self.remetente
@@ -467,19 +485,11 @@ class EnvioFrame(ctk.CTkFrame):
 
         corpo = f"""
         Olá {nome},
-
-        Informamos que sua fatura de energia já está disponível.
-
+       
         📄 CIL: {cil}
 
-        Anexamos o documento correspondente ao mês atual para que possa efetuar o pagamento.
-
-        ⚠️ Lembramos que o não pagamento poderá resultar na interrupção do fornecimento.
-
-        Caso já tenha efetuado o pagamento, por favor, desconsidere esta mensagem.
-
-        Atenciosamente,  
-        Direção Comercial - EDEC SUL
+        {corpo_padrao}
+       
         """
         msg.attach(MIMEText(corpo, 'plain'))
 
