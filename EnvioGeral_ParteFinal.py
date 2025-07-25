@@ -390,7 +390,7 @@ class EnvioFrame(ctk.CTkFrame):
         ctk.CTkLabel(self, text="📤 Envio de E-mails com Anexo PDF", font=ctk.CTkFont(size=20, weight="bold")).pack(pady=20)
 
         # Botão para selecionar múltiplos arquivos PDF
-        ctk.CTkButton(self, text="Selecionar Arquivos PDF", command=self.selecionar_pdfs).pack(pady=10)
+        ctk.CTkButton(self, text="Selecionar Directotio", command=self.selecionar_pdfs).pack(pady=10)
         self.arquivos_label = ctk.CTkLabel(self, text="")
         self.arquivos_label.pack(pady=5)
 
