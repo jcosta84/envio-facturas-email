@@ -555,9 +555,12 @@ class RelatorioFrame(ctk.CTkFrame):
         try:
             df_filtrado = self.df.copy()
             if inicio:
-                df_filtrado = df_filtrado[df_filtrado["data_envio"] >= pd.to_datetime(inicio)]
+                inicio_dt = pd.to_datetime(inicio).normalize()
+                df_filtrado = df_filtrado[df_filtrado["data_envio"] >= inicio_dt]
+
             if fim:
-                df_filtrado = df_filtrado[df_filtrado["data_envio"] <= pd.to_datetime(fim)]
+                fim_dt = pd.to_datetime(fim).normalize() + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+                df_filtrado = df_filtrado[df_filtrado["data_envio"] <= fim_dt]
             self.exibir(df_filtrado)
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao aplicar filtro: {e}")
