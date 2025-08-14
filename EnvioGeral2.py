@@ -29,12 +29,13 @@ class App(ctk.CTk):
 
         # Conexão ao banco
         self.engine = self.get_engine(
-            host="192.168.52.180",
+            host="192.168.38.254",
             port="1433",
             database="factura_email",
-            username="sa",
+            username="jpaulo",
             password="loucoste9850053"
         )
+        
 
         # Login do remetente
         self.remetente = "cpjcosta30@gmail.com"
@@ -68,8 +69,9 @@ class App(ctk.CTk):
         try:
             password_enconde = quote_plus(password)
             connection_url = (
-                f"mssql+pyodbc://{username}:{password_enconde}@{host},{port}/{database}"
+                f"mssql+pyodbc://@{host},{port}/{database}"
                 "?driver=ODBC+Driver+17+for+SQL+Server"
+                "&trusted_connection=yes"
             )
             engine = create_engine(connection_url)
             return engine
