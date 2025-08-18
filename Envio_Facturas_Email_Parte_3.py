@@ -29,9 +29,9 @@ class App(ctk.CTk):
 
         # Conexão ao banco
         self.engine = self.get_engine(
-            server="192.168.52.180,1433",
+            server="192.168.38.2",
             database="factura_email",
-            username="sa",
+            username="jpaulo",
             password="loucoste9850053"
         )
 

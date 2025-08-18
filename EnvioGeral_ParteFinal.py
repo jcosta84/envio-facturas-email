@@ -30,10 +30,10 @@ class App(ctk.CTk):
 
         # Conexão ao banco
         self.engine = self.get_engine(
-            host="192.168.52.180",
+            host="192.168.38.2",
             port="1433",
             database="factura_email",
-            username="sa",
+            username="jpaulo",
             password="loucoste9850053"
         )
 

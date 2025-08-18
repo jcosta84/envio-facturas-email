@@ -69,9 +69,9 @@ with st.sidebar:
     )
 
 # Configuração
-server_var = "192.168.52.180,1433"
+server_var = "192.168.38.2"
 db_var = "factura_email"
-user_var = "sa"
+user_var = "jpaulo"
 pwd_var = "loucoste9850053"
 gmail_var = "cpjcosta30@gmail.com"
 gmail_pwd_var = os.getenv("GMAIL_APP_PWD")  # Recomendado: definir fora do código

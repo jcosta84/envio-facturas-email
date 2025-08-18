@@ -94,10 +94,10 @@ with st.sidebar:
 
 # Configuração
 #st.sidebar.expander("⚙️ Configuração do sistema")
-host="192.168.52.180"
+host="192.168.38.2"
 port="1433"
 database="factura_email"
-username="sa"
+username="jpaulo"
 password="loucoste9850053"
 gmail_var = "cpjcosta30@gmail.com"
 gmail_pwd_var = "ilfr gubf rcfr tyro"
