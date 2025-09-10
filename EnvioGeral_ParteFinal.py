@@ -33,7 +33,7 @@ class App(ctk.CTk):
             host="192.168.38.2",
             port="1433",
             database="factura_email",
-            username="jpaulo",
+            username="pcosta",
             password="loucoste9850053"
         )
 
