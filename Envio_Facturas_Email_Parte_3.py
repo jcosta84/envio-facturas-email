@@ -31,7 +31,7 @@ class App(ctk.CTk):
         self.engine = self.get_engine(
             server="192.168.38.2",
             database="factura_email",
-            username="jpaulo",
+            username="pcosta",
             password="loucoste9850053"
         )
 
