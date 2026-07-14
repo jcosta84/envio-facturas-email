@@ -53,6 +53,7 @@ class App(ctk.CTk):
             ("📋 Cadastro", self.abrir_cadastro),
             ("📧 CC Conhecimento", self.abrir_cc),
             ("🔍 Consulta", self.abrir_consulta),
+            ("✏️ Corpo do E-mail", self.abrir_corpo_email),
             ("📤 Enviar E-mails", self.abrir_envio),
             ("📊 Relatório", self.abrir_relatorio)
         ]
@@ -104,6 +105,10 @@ class App(ctk.CTk):
     def abrir_consulta(self):
         self.limpar_container()
         ConsultaFrame(self.container, self.engine).pack(expand=True, fill="both")
+
+    def abrir_corpo_email(self):
+        self.limpar_container()
+        CorpoEmailFrame(self.container, self.engine).pack(expand=True, fill="both")
 
     def abrir_envio(self):
         self.limpar_container()
@@ -388,6 +393,135 @@ class ConsultaFrame(ctk.CTkFrame):
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao salvar alterações: {e}")
 
+#========= corpo do e-mail ====================
+class CorpoEmailFrame(ctk.CTkFrame):
+    def __init__(self, master, engine):
+        super().__init__(master)
+        self.engine = engine
+
+        ctk.CTkLabel(
+            self,
+            text="✏️ Alterar Corpo do E-mail",
+            font=ctk.CTkFont(size=20, weight="bold")
+        ).pack(pady=20)
+
+        ctk.CTkLabel(
+            self,
+            text="Edite abaixo a mensagem que será incluída em todos os e-mails.",
+            text_color="gray"
+        ).pack(pady=(0, 10))
+
+        self.corpo_texto = ctk.CTkTextbox(self, width=750, height=380, wrap="word")
+        self.corpo_texto.pack(padx=25, pady=10, fill="both", expand=True)
+
+        botoes_frame = ctk.CTkFrame(self)
+        botoes_frame.pack(pady=15)
+
+        ctk.CTkButton(
+            botoes_frame,
+            text="💾 Guardar Alterações",
+            command=self.guardar_corpo
+        ).grid(row=0, column=0, padx=10)
+
+        ctk.CTkButton(
+            botoes_frame,
+            text="↻ Recarregar",
+            command=self.carregar_corpo
+        ).grid(row=0, column=1, padx=10)
+
+        self.preparar_tabela()
+        self.carregar_corpo()
+
+    def preparar_tabela(self):
+        """Cria a tabela e o registo padrão caso ainda não existam."""
+        corpo_inicial = (
+            "Anexamos o documento correspondente ao mês atual para que possa "
+            "efetuar o pagamento.\n\n"
+            "⚠️ Lembramos que o não pagamento poderá resultar na interrupção "
+            "do fornecimento.\n\n"
+            "Caso já tenha efetuado o pagamento, por favor, desconsidere esta "
+            "mensagem.\n\n"
+            "Atenciosamente,\n"
+            "Direção Comercial - EDEC SUL"
+        )
+
+        try:
+            with self.engine.begin() as conn:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS corpo_email (
+                        id INT PRIMARY KEY,
+                        conteudo LONGTEXT NOT NULL
+                    )
+                """))
+
+                existe = conn.execute(
+                    text("SELECT COUNT(*) FROM corpo_email WHERE id = 1")
+                ).scalar()
+
+                if existe == 0:
+                    conn.execute(
+                        text("""
+                            INSERT INTO corpo_email (id, conteudo)
+                            VALUES (1, :conteudo)
+                        """),
+                        {"conteudo": corpo_inicial}
+                    )
+        except Exception as e:
+            messagebox.showerror(
+                "Erro",
+                f"Não foi possível preparar a tabela corpo_email: {e}"
+            )
+
+    def carregar_corpo(self):
+        try:
+            with self.engine.connect() as conn:
+                conteudo = conn.execute(
+                    text("SELECT conteudo FROM corpo_email WHERE id = 1")
+                ).scalar()
+
+            self.corpo_texto.delete("1.0", tk.END)
+            if conteudo:
+                self.corpo_texto.insert("1.0", conteudo)
+
+        except Exception as e:
+            messagebox.showerror(
+                "Erro",
+                f"Erro ao carregar o corpo do e-mail: {e}"
+            )
+
+    def guardar_corpo(self):
+        conteudo = self.corpo_texto.get("1.0", tk.END).strip()
+
+        if not conteudo:
+            messagebox.showwarning(
+                "Campo vazio",
+                "O corpo do e-mail não pode ficar vazio."
+            )
+            return
+
+        try:
+            with self.engine.begin() as conn:
+                conn.execute(
+                    text("""
+                        INSERT INTO corpo_email (id, conteudo)
+                        VALUES (1, :conteudo)
+                        ON DUPLICATE KEY UPDATE conteudo = :conteudo
+                    """),
+                    {"conteudo": conteudo}
+                )
+
+            messagebox.showinfo(
+                "Sucesso",
+                "Corpo do e-mail atualizado com sucesso."
+            )
+
+        except Exception as e:
+            messagebox.showerror(
+                "Erro",
+                f"Erro ao guardar o corpo do e-mail: {e}"
+            )
+
+
 #============ envio email =====================
 class EnvioFrame(ctk.CTkFrame):
     def __init__(self, master, engine, remetente, senha_app):
@@ -400,7 +534,7 @@ class EnvioFrame(ctk.CTkFrame):
         ctk.CTkLabel(self, text="📤 Envio de E-mails com Anexo PDF", font=ctk.CTkFont(size=20, weight="bold")).pack(pady=20)
 
         # Botão para selecionar múltiplos arquivos PDF
-        ctk.CTkButton(self, text="Selecionar Directotio", command=self.selecionar_pdfs).pack(pady=10)
+        ctk.CTkButton(self, text="Selecionar Diretório", command=self.selecionar_pdfs).pack(pady=10)
         self.arquivos_label = ctk.CTkLabel(self, text="")
         self.arquivos_label.pack(pady=5)
 
@@ -475,16 +609,23 @@ class EnvioFrame(ctk.CTkFrame):
             messagebox.showerror("Erro", f"Erro ao salvar relatório: {e}")
 
     def obter_corpo_padrao(self):
-        with self.engine.connect() as conn:
-            result = conn.execute(text("SELECT conteudo FROM corpo_email WHERE id = 1"))
-            row = result.fetchone()
-            return row[0] if row else ""
+        try:
+            with self.engine.connect() as conn:
+                conteudo = conn.execute(
+                    text("SELECT conteudo FROM corpo_email WHERE id = 1")
+                ).scalar()
+                return conteudo or ""
+        except Exception as e:
+            raise RuntimeError(f"Erro ao obter o corpo do e-mail: {e}") from e
     
     def enviar_email(self, destinatario, nome, cil, caminho_anexo, cc_list=None):
         cc_list = cc_list or []
 
-        #buscar coprp de texto
-        corpo_padrao = self.obter_corpo_padrao()
+        # Buscar o corpo do e-mail guardado na base de dados
+        try:
+            corpo_padrao = self.obter_corpo_padrao()
+        except Exception as e:
+            return "Erro", str(e)
 
         msg = MIMEMultipart()
         msg['From'] = self.remetente
