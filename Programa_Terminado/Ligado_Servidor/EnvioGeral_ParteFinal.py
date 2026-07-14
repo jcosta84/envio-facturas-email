@@ -15,6 +15,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from tkinter import ttk
 import tkinter.filedialog as fd
+import configparser
 
 
 # ========== Configurações iniciais ===========
@@ -29,17 +30,19 @@ class App(ctk.CTk):
         self.geometry("1000x700")
 
         # Conexão ao banco
+        config = self.carregar_config()
+
         self.engine = self.get_engine(
-            host="100.116.112.107",
-            port="3306",
-            database="factura_email",
-            username="jcosta",
-            password="Loucoste@9309323"
+            host=config["DATABASE"]["HOST"],
+            port=config["DATABASE"]["PORT"],
+            database=config["DATABASE"]["DATABASE"],
+            username=config["DATABASE"]["USERNAME"],
+            password=config["DATABASE"]["PASSWORD"]
         )
 
-        # Login do remetente
-        self.remetente = "edecsul@gmail.com"
-        self.senha_app = "mjmg wmua fhpk vwbv"
+        self.remetente = config["EMAIL"]["REMETENTE"]
+        self.senha_app = config["EMAIL"]["SENHA_APP"]
+        self.assunto = config["EMAIL"]["ASSUNTO"]
 
         # Layout
         self.menu_lateral = ctk.CTkFrame(self, width=200)
@@ -65,6 +68,49 @@ class App(ctk.CTk):
         self.abrir_cadastro()
 
     # ========== Conexão DB ==========
+    def carregar_config(self):
+        """Carrega e valida as configurações do ficheiro config.ini."""
+        config = configparser.ConfigParser()
+
+        caminho_config = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.ini")
+
+        if not os.path.exists(caminho_config):
+            messagebox.showerror(
+                "Configuração não encontrada",
+                f"O ficheiro config.ini não foi encontrado em:\n{caminho_config}"
+            )
+            self.destroy()
+            raise FileNotFoundError("Ficheiro config.ini não encontrado.")
+
+        config.read(caminho_config, encoding="utf-8")
+
+        secoes_obrigatorias = ["DATABASE", "EMAIL"]
+        for secao in secoes_obrigatorias:
+            if secao not in config:
+                messagebox.showerror(
+                    "Erro de configuração",
+                    f"A secção [{secao}] não existe no ficheiro config.ini."
+                )
+                self.destroy()
+                raise KeyError(f"Secção [{secao}] em falta.")
+
+        campos_obrigatorios = {
+            "DATABASE": ["HOST", "PORT", "DATABASE", "USERNAME", "PASSWORD"],
+            "EMAIL": ["REMETENTE", "SENHA_APP", "ASSUNTO"]
+        }
+
+        for secao, campos in campos_obrigatorios.items():
+            for campo in campos:
+                if not config[secao].get(campo, "").strip():
+                    messagebox.showerror(
+                        "Erro de configuração",
+                        f"O campo {campo} da secção [{secao}] está vazio ou não existe."
+                    )
+                    self.destroy()
+                    raise ValueError(f"Campo {campo} em falta na secção [{secao}].")
+
+        return config
+    
     def get_engine(self, host, database, username, password, port="3306"):
         try:
             password_encode = quote_plus(password)
@@ -112,7 +158,13 @@ class App(ctk.CTk):
 
     def abrir_envio(self):
         self.limpar_container()
-        EnvioFrame(self.container, self.engine, self.remetente, self.senha_app).pack(expand=True, fill="both")
+        EnvioFrame(
+            self.container,
+            self.engine,
+            self.remetente,
+            self.senha_app,
+            self.assunto
+        ).pack(expand=True, fill="both")
 
     def abrir_relatorio(self):
         self.limpar_container()
@@ -524,11 +576,12 @@ class CorpoEmailFrame(ctk.CTkFrame):
 
 #============ envio email =====================
 class EnvioFrame(ctk.CTkFrame):
-    def __init__(self, master, engine, remetente, senha_app):
+    def __init__(self, master, engine, remetente, senha_app, assunto):
         super().__init__(master)
         self.engine = engine
         self.remetente = remetente
         self.senha_app = senha_app
+        self.assunto = assunto
         self.pdf_dict = {}
 
         ctk.CTkLabel(self, text="📤 Envio de E-mails com Anexo PDF", font=ctk.CTkFont(size=20, weight="bold")).pack(pady=20)
@@ -630,7 +683,7 @@ class EnvioFrame(ctk.CTkFrame):
         msg = MIMEMultipart()
         msg['From'] = self.remetente
         msg['To'] = destinatario
-        msg['Subject'] = "Factura de Energia da Empresa EDEC"
+        msg['Subject'] = self.assunto
         if cc_list:
             msg['Cc'] = ", ".join(cc_list)
 
