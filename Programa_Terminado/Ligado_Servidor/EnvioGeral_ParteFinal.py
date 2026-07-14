@@ -14,6 +14,7 @@ from io import BytesIO
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from tkinter import ttk
+import tkinter.filedialog as fd
 
 
 # ========== Configurações iniciais ===========
@@ -29,15 +30,16 @@ class App(ctk.CTk):
 
         # Conexão ao banco
         self.engine = self.get_engine(
-            server="192.168.38.3",
+            host="100.116.112.107",
+            port="3306",
             database="factura_email",
-            username="pcosta",
-            password="loucoste9850053"
+            username="jcosta",
+            password="Loucoste@9309323"
         )
 
         # Login do remetente
-        self.remetente = "cpjcosta30@gmail.com"
-        self.senha_app = "ilfr gubf rcfr tyro"
+        self.remetente = "edecsul@gmail.com"
+        self.senha_app = "mjmg wmua fhpk vwbv"
 
         # Layout
         self.menu_lateral = ctk.CTkFrame(self, width=200)
@@ -62,15 +64,26 @@ class App(ctk.CTk):
         self.abrir_cadastro()
 
     # ========== Conexão DB ==========
-    def get_engine(self, server, database, username, password):
+    def get_engine(self, host, database, username, password, port="3306"):
         try:
-            connection_string = (
-                f"DRIVER={{ODBC Driver 17 for SQL Server}};"
-                f"SERVER={server};DATABASE={database};UID={username};PWD={password}"
+            password_encode = quote_plus(password)
+
+            connection_url = (
+                f"mysql+pymysql://{username}:{password_encode}@{host}:{port}/{database}"
             )
-            params = quote_plus(connection_string)
-            engine = create_engine(f"mssql+pyodbc:///?odbc_connect={params}")
+
+            engine = create_engine(
+                connection_url,
+                pool_pre_ping=True,
+                pool_recycle=3600
+            )
+
+            # Testa a ligação
+            with engine.connect():
+                pass
+
             return engine
+
         except Exception as e:
             messagebox.showerror("Erro de conexão", str(e))
             return None
@@ -99,7 +112,6 @@ class App(ctk.CTk):
     def abrir_relatorio(self):
         self.limpar_container()
         RelatorioFrame(self.container, self.engine).pack(expand=True, fill="both")
-
 
 #=============== cadastro ====================
 class CadastroFrame(ctk.CTkFrame):
@@ -184,7 +196,6 @@ class CadastroFrame(ctk.CTkFrame):
 
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao cadastrar: {e}")
-
 
 #========= para conhecimento==================
 class CCFrame(ctk.CTkFrame):
@@ -279,14 +290,12 @@ class CCFrame(ctk.CTkFrame):
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao salvar alterações: {e}")
 
-
 #========= consultar cadastro =================
 class ConsultaFrame(ctk.CTkFrame):
     def __init__(self, master, engine):
         super().__init__(master)
         self.engine = engine
         self.df_original = pd.DataFrame()
-        self.df_atual = pd.DataFrame()
         self.edits = {}
         self.check_vars = {}
 
@@ -297,7 +306,7 @@ class ConsultaFrame(ctk.CTkFrame):
 
         ctk.CTkLabel(self.filtro_frame, text="Filtrar por CIL:").grid(row=0, column=0, padx=10, pady=5)
 
-        self.cil_filtro = ctk.CTkComboBox(self.filtro_frame, values=["Todos"], command=self.filtrar, width=200)
+        self.cil_filtro = ctk.CTkComboBox(self.filtro_frame, values=["Todos"], command=self.filtrar)
         self.cil_filtro.grid(row=0, column=1, padx=10, pady=5)
 
         self.tabela_frame = ctk.CTkScrollableFrame(self, height=350)
@@ -306,10 +315,8 @@ class ConsultaFrame(ctk.CTkFrame):
         # Botões
         btns = ctk.CTkFrame(self)
         btns.pack(pady=10)
-
         ctk.CTkButton(btns, text="🗑️ Excluir Selecionados", command=self.excluir_selecionados).grid(row=0, column=0, padx=10)
         ctk.CTkButton(btns, text="💾 Salvar Alterações", command=self.salvar_alteracoes).grid(row=0, column=1, padx=10)
-        ctk.CTkButton(btns, text="📥 Extrair Lista de Clientes", command=self.extrair_lista_clientes).grid(row=0, column=2, padx=10)
 
         self.carregar_dados()
 
@@ -318,27 +325,22 @@ class ConsultaFrame(ctk.CTkFrame):
             widget.destroy()
 
         try:
-            self.df_original = pd.read_sql("SELECT cil, nome, email FROM clientes ORDER BY nome", self.engine)
+            self.df_original = pd.read_sql("SELECT cil, nome, email FROM clientes", self.engine)
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar clientes: {e}")
             return
-
-        self.df_original["cil"] = self.df_original["cil"].astype(str)
 
         self.lista_cil = self.df_original["cil"].dropna().astype(str).tolist()
         self.cil_filtro.configure(values=["Todos"] + self.lista_cil)
         self.cil_filtro.set("Todos")
 
-        self.df_atual = self.df_original.copy()
         self.exibir_tabela(self.df_original)
 
     def filtrar(self, valor):
         if valor == "Todos":
-            self.df_atual = self.df_original.copy()
             self.exibir_tabela(self.df_original)
         else:
-            filtrado = self.df_original[self.df_original["cil"] == str(valor)].copy()
-            self.df_atual = filtrado
+            filtrado = self.df_original[self.df_original["cil"] == valor]
             self.exibir_tabela(filtrado)
 
     def exibir_tabela(self, df):
@@ -348,23 +350,17 @@ class ConsultaFrame(ctk.CTkFrame):
         self.check_vars = {}
         self.edits = {}
 
-        # Cabeçalhos
-        ctk.CTkLabel(self.tabela_frame, text="", width=40, font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, padx=5, pady=5)
-        ctk.CTkLabel(self.tabela_frame, text="CIL", width=120, font=ctk.CTkFont(weight="bold")).grid(row=0, column=1, padx=5, pady=5)
-        ctk.CTkLabel(self.tabela_frame, text="Nome", width=220, font=ctk.CTkFont(weight="bold")).grid(row=0, column=2, padx=5, pady=5)
-        ctk.CTkLabel(self.tabela_frame, text="Email", width=250, font=ctk.CTkFont(weight="bold")).grid(row=0, column=3, padx=5, pady=5)
-
-        for idx, (_, row) in enumerate(df.iterrows(), start=1):
+        for i, row in df.iterrows():
             var = tk.BooleanVar()
             self.check_vars[row["cil"]] = var
 
             email_var = tk.StringVar(value=row["email"])
             self.edits[row["cil"]] = email_var
 
-            ctk.CTkCheckBox(self.tabela_frame, text="", variable=var).grid(row=idx, column=0, padx=5, pady=3)
-            ctk.CTkLabel(self.tabela_frame, text=row["cil"], width=120).grid(row=idx, column=1, padx=5, pady=3)
-            ctk.CTkLabel(self.tabela_frame, text=row["nome"], width=220).grid(row=idx, column=2, padx=5, pady=3)
-            ctk.CTkEntry(self.tabela_frame, textvariable=email_var, width=250).grid(row=idx, column=3, padx=5, pady=3)
+            ctk.CTkCheckBox(self.tabela_frame, text="", variable=var).grid(row=i, column=0, padx=5)
+            ctk.CTkLabel(self.tabela_frame, text=row["cil"], width=100).grid(row=i, column=1, padx=5)
+            ctk.CTkLabel(self.tabela_frame, text=row["nome"], width=200).grid(row=i, column=2, padx=5)
+            ctk.CTkEntry(self.tabela_frame, textvariable=email_var, width=250).grid(row=i, column=3, padx=5)
 
     def excluir_selecionados(self):
         selecionados = [cil for cil, var in self.check_vars.items() if var.get()]
@@ -389,43 +385,8 @@ class ConsultaFrame(ctk.CTkFrame):
                         {"email": email_var.get().strip(), "cil": cil}
                     )
             messagebox.showinfo("Sucesso", "Alterações salvas com sucesso.")
-            self.carregar_dados()
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao salvar alterações: {e}")
-
-    def extrair_lista_clientes(self):
-        if self.df_atual.empty:
-            messagebox.showwarning("Aviso", "Nenhum cliente disponível para extrair.")
-            return
-
-        try:
-            caminho = filedialog.asksaveasfilename(
-                title="Guardar lista de clientes",
-                defaultextension=".xlsx",
-                filetypes=[
-                    ("Arquivo Excel", "*.xlsx"),
-                    ("Arquivo CSV", "*.csv")
-                ]
-            )
-
-            if not caminho:
-                return
-
-            df_exportar = self.df_atual.copy()
-
-            if caminho.lower().endswith(".xlsx"):
-                df_exportar.to_excel(caminho, index=False)
-            elif caminho.lower().endswith(".csv"):
-                df_exportar.to_csv(caminho, index=False, sep=";", encoding="utf-8-sig")
-            else:
-                messagebox.showwarning("Formato inválido", "Escolha um arquivo Excel (.xlsx) ou CSV (.csv).")
-                return
-
-            messagebox.showinfo("Sucesso", f"Lista de clientes extraída com sucesso:\n{caminho}")
-
-        except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao extrair lista de clientes: {e}")
-
 
 #============ envio email =====================
 class EnvioFrame(ctk.CTkFrame):
@@ -439,7 +400,7 @@ class EnvioFrame(ctk.CTkFrame):
         ctk.CTkLabel(self, text="📤 Envio de E-mails com Anexo PDF", font=ctk.CTkFont(size=20, weight="bold")).pack(pady=20)
 
         # Botão para selecionar múltiplos arquivos PDF
-        ctk.CTkButton(self, text="Selecionar Arquivos PDF", command=self.selecionar_pdfs).pack(pady=10)
+        ctk.CTkButton(self, text="Selecionar Directotio", command=self.selecionar_pdfs).pack(pady=10)
         self.arquivos_label = ctk.CTkLabel(self, text="")
         self.arquivos_label.pack(pady=5)
 
@@ -450,14 +411,22 @@ class EnvioFrame(ctk.CTkFrame):
         self.status_box.pack(pady=10)
 
     def selecionar_pdfs(self):
-        arquivos = filedialog.askopenfilenames(filetypes=[("PDF files", "*.pdf")])
-        self.pdf_dict.clear()
-        nomes = []
-        for caminho in arquivos:
-            nome = os.path.basename(caminho)
-            self.pdf_dict[nome] = caminho
-            nomes.append(nome)
-        self.arquivos_label.configure(text=f"{len(nomes)} arquivo(s) selecionado(s)")
+        
+        """Selecionar diretório contendo arquivos PDF"""
+        self.pdfs = filedialog.askdirectory(title="Selecionar diretório")
+        if self.pdfs:
+            print(f"Diretório selecionado: {self.pdfs}")
+            # Lista os PDFs do diretório e atualiza a label e dicionário
+            self.pdf_dict.clear()
+            nomes = []
+            for nome_arquivo in os.listdir(self.pdfs):
+                if nome_arquivo.lower().endswith('.pdf'):
+                    caminho_completo = os.path.join(self.pdfs, nome_arquivo)
+                    self.pdf_dict[nome_arquivo] = caminho_completo
+                    nomes.append(nome_arquivo)
+            self.arquivos_label.configure(text=f"{len(nomes)} arquivo(s) PDF encontrado(s)")
+
+
 
     def enviar_em_lote(self):
         if not self.pdf_dict:
@@ -505,8 +474,17 @@ class EnvioFrame(ctk.CTkFrame):
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao salvar relatório: {e}")
 
+    def obter_corpo_padrao(self):
+        with self.engine.connect() as conn:
+            result = conn.execute(text("SELECT conteudo FROM corpo_email WHERE id = 1"))
+            row = result.fetchone()
+            return row[0] if row else ""
+    
     def enviar_email(self, destinatario, nome, cil, caminho_anexo, cc_list=None):
         cc_list = cc_list or []
+
+        #buscar coprp de texto
+        corpo_padrao = self.obter_corpo_padrao()
 
         msg = MIMEMultipart()
         msg['From'] = self.remetente
@@ -517,19 +495,11 @@ class EnvioFrame(ctk.CTkFrame):
 
         corpo = f"""
         Olá {nome},
-
-        Informamos que sua fatura de energia já está disponível.
-
+       
         📄 CIL: {cil}
 
-        Anexamos o documento correspondente ao mês atual para que possa efetuar o pagamento.
-
-        ⚠️ Lembramos que o não pagamento poderá resultar na interrupção do fornecimento.
-
-        Caso já tenha efetuado o pagamento, por favor, desconsidere esta mensagem.
-
-        Atenciosamente,  
-        Direção Comercial - EDEC SUL
+        {corpo_padrao}
+       
         """
         msg.attach(MIMEText(corpo, 'plain'))
 
@@ -545,7 +515,6 @@ class EnvioFrame(ctk.CTkFrame):
             return "Sucesso", "Email enviado com sucesso."
         except Exception as e:
             return "Erro", str(e)
-
 
 #========= relatorio ==========================
 class RelatorioFrame(ctk.CTkFrame):
@@ -596,9 +565,12 @@ class RelatorioFrame(ctk.CTkFrame):
         try:
             df_filtrado = self.df.copy()
             if inicio:
-                df_filtrado = df_filtrado[df_filtrado["data_envio"] >= pd.to_datetime(inicio)]
+                inicio_dt = pd.to_datetime(inicio).normalize()
+                df_filtrado = df_filtrado[df_filtrado["data_envio"] >= inicio_dt]
+
             if fim:
-                df_filtrado = df_filtrado[df_filtrado["data_envio"] <= pd.to_datetime(fim)]
+                fim_dt = pd.to_datetime(fim).normalize() + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+                df_filtrado = df_filtrado[df_filtrado["data_envio"] <= fim_dt]
             self.exibir(df_filtrado)
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao aplicar filtro: {e}")
@@ -657,7 +629,6 @@ class RelatorioFrame(ctk.CTkFrame):
             messagebox.showinfo("Sucesso", f"PDF salvo: {file_path}")
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao gerar PDF: {e}")
-
 
 if __name__ == "__main__":
     app = App()

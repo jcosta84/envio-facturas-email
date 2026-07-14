@@ -94,7 +94,7 @@ with st.sidebar:
 
 # Configuração
 #st.sidebar.expander("⚙️ Configuração do sistema")
-host="192.168.38.2"
+host="192.168.38.3"
 port="1433"
 database="factura_email"
 username="jpaulo"
