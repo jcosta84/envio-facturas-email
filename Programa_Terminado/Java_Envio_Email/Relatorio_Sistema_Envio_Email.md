@@ -2259,6 +2259,3 @@ pandoc Relatorio_Sistema_Envio_Email_Completo.md `
   --number-sections `
   --pdf-engine=xelatex
 ```
-
-> **Nota explicativa:**  
-> Este comando necessita do Pandoc e de um motor LaTeX instalado. Caso `xelatex` não esteja disponível, pode ser utilizado outro motor compatível.
