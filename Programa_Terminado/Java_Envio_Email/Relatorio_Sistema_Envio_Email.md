@@ -1,15 +1,72 @@
----
-title: "Relatório Técnico do Sistema de Gestão e Envio Automático de E-mails"
-subtitle: "Documentação funcional, arquitetura, exemplos de código e estruturas de dados"
-author: "Paulo Costa"
-date: \today
-lang: pt-PT
-geometry: margin=2.5cm
-fontsize: 12pt
-toc: true
-toc-depth: 3
-numbersections: true
----
+# Relatório do Sistema Envio Automático de E-mails 
+## Documentação funcional, arquitetura, exemplos de código e estruturas de dados
+
+### Curso: Engenharia Informática 
+### Instituição: Universidade de Santiago 
+### Unidade Curricular: Conceção e Análise de Algoritmos 
+### Tema: Sistema de Gestão Comercial AQStore 
+
+<br> <br> 
+
+## Participantes 
+
+- Paulo Costa Nº 7517 
+
+## Docente 
+ 
+ - Professor Valério Semedo 
+
+<br><br>
+
+### Praia, 2026
+
+<br><br>
+
+\newpage
+
+# Índice
+
+### - Introdução
+### - Objetivos
+### - Tecnologias e bibliotecas utilizadas
+### - Estrutura geral do projeto
+### - Configuração Maven
+### - Ficheiro de configuração
+### - Leitura do ficheiro INI
+### - Ligação à base de dados
+### - Modelo de cliente
+### - Repositório de clientes
+### - Gestão de destinatários CC
+### - Gestão do corpo do e-mail
+### - Serviço de envio de e-mails
+### - Modelo de relatório
+### - Repositório de relatórios
+### - Exportação para Excel
+### - Exportação para PDF
+### - Interface JavaFX
+### - Menu lateral
+### - Cadastro de clientes
+### - Consulta e operações CRUD
+### - Tabela JavaFX
+### - Edição do corpo do e-mail
+### - Envio em lote
+### - Estrutura de dados `ListaDupla`
+### - Listas utilizadas no sistema
+### - Comparação das listas
+### - Validação de e-mail
+### - Tratamento de exceções
+### - Alertas
+### - Classe `Launcher`
+### - Arquitetura lógica
+### - Fluxo de cadastro
+### - Fluxo de envio
+### - Segurança e boas práticas
+### - Limitações identificadas
+### - Melhorias futuras
+### - Conclusão
+### - Anexo A — Comandos de execução
+### - Anexo B — Estrutura sugerida da base de dados
+### - Anexo C — Conversão do Markdown para PDF
 
 \newpage
 
