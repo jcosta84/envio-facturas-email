@@ -1,0 +1,4 @@
+cd "C:\Users\EDEC\Elaboração de Programas\envio-facturas-email\Programa_Terminado\Java\EnvioEmailJavaFX_Retificado"
+
+mvn clean javafx:run
+Launcher.java
