@@ -1,0 +1,10 @@
+1. Execute alteracao_base_dados.sql no MySQL Workbench.
+2. Copie AuditoriaRepository.java para o mesmo package das outras classes.
+3. Substitua UsuarioRepository.java e MainApp.java pelas versões desta pasta.
+4. LoginApp.java foi incluído para manter o conjunto completo.
+5. Confirme que todos os ficheiros usam: package cv.edu.us.envio;
+6. Faça login e execute:
+   SELECT * FROM acessos ORDER BY data_hora DESC;
+   SELECT * FROM logs ORDER BY data_hora DESC;
+
+Nota: caso as colunas já existam em usuarios, remova do ALTER TABLE as linhas correspondentes antes de executar.
