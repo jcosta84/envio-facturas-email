@@ -1,0 +1,126 @@
+.root, .app-root {
+    -fx-font-family: "Segoe UI", Arial, sans-serif;
+    -fx-background-color: #17191b;
+    -fx-text-fill: #f5f5f5;
+}
+
+.sidebar {
+    -fx-background-color: linear-gradient(to bottom, #17191b, #111315);
+    -fx-border-color: transparent #34373a transparent transparent;
+    -fx-border-width: 0 1 0 0;
+}
+.sidebar-user, .sidebar-role {
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+.sidebar-user { -fx-font-size: 16px; }
+.sidebar-role { -fx-font-size: 18px; }
+.sidebar-button {
+    -fx-background-color: #303234;
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-padding: 15 16 15 16;
+    -fx-background-radius: 9;
+    -fx-cursor: hand;
+}
+.sidebar-button:hover { -fx-background-color: #3a3d40; }
+.sidebar-button-active {
+    -fx-background-color: #424548;
+    -fx-border-color: #5b8def;
+    -fx-border-width: 0 0 0 4;
+    -fx-border-radius: 9;
+}
+.sidebar-separator .line { -fx-border-color: #34373a; }
+
+.content-page {
+    -fx-background-color: #1b1d1f;
+}
+.page-title {
+    -fx-text-fill: white;
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
+}
+.page-subtitle {
+    -fx-text-fill: #d3d5d7;
+    -fx-font-size: 15px;
+}
+.section-title {
+    -fx-text-fill: white;
+    -fx-font-size: 17px;
+    -fx-font-weight: bold;
+}
+
+.summary-card, .panel-card {
+    -fx-background-color: linear-gradient(to bottom right, #2b2d2f, #242628);
+    -fx-background-radius: 12;
+    -fx-border-color: #34373a;
+    -fx-border-radius: 12;
+    -fx-padding: 18;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.25), 12, 0.15, 0, 4);
+}
+.summary-card { -fx-min-height: 155; }
+.summary-icon { -fx-font-size: 27px; }
+.summary-number { -fx-text-fill: white; -fx-font-size: 31px; -fx-font-weight: bold; }
+.summary-title { -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold; }
+.summary-detail { -fx-text-fill: #aeb2b6; -fx-font-size: 13px; }
+
+.quick-action {
+    -fx-background-color: #292b2d;
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-padding: 20 14 20 14;
+    -fx-background-radius: 10;
+    -fx-border-color: #43464a;
+    -fx-border-radius: 10;
+    -fx-cursor: hand;
+    -fx-min-height: 105;
+}
+.quick-action:hover { -fx-background-color: #36393c; }
+.secondary-button, .button {
+    -fx-background-color: #34373a;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 7;
+    -fx-padding: 9 14 9 14;
+    -fx-cursor: hand;
+}
+.button:hover { -fx-background-color: #45494d; }
+
+.label { -fx-text-fill: #ededed; }
+.text-field, .text-area, .date-picker, .list-view, .table-view {
+    -fx-background-color: #252729;
+    -fx-control-inner-background: #252729;
+    -fx-text-fill: white;
+    -fx-prompt-text-fill: #8d9195;
+    -fx-border-color: #414448;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+}
+.text-area .content { -fx-background-color: #252729; }
+
+.table-view {
+    -fx-background-color: #222426;
+    -fx-border-color: #414448;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+.table-view .column-header-background { -fx-background-color: #292b2d; }
+.table-view .column-header, .table-view .filler { -fx-background-color: #292b2d; }
+.table-view .column-header .label { -fx-text-fill: white; -fx-font-weight: bold; }
+.table-row-cell { -fx-background-color: #242628; -fx-text-background-color: white; }
+.table-row-cell:odd { -fx-background-color: #282a2c; }
+.table-row-cell:selected { -fx-background-color: #3b5f92; }
+.table-cell { -fx-text-fill: #eeeeee; -fx-border-color: transparent; }
+
+.status-bar {
+    -fx-background-color: #252729;
+    -fx-border-color: #3b3e41 transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+}
+.database-status { -fx-text-fill: #e8f7e9; -fx-font-weight: bold; }
+.date-time-box .label { -fx-text-fill: #f0f0f0; -fx-font-weight: bold; }
+
+.scroll-bar:vertical, .scroll-bar:horizontal { -fx-background-color: #202224; }
+.scroll-bar .thumb { -fx-background-color: #4a4d50; -fx-background-radius: 6; }

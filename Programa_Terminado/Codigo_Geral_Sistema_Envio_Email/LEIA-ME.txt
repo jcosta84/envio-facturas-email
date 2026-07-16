@@ -1,0 +1,48 @@
+CÓDIGO GERAL — SISTEMA DE ENVIO DE E-MAILS
+
+FUNCIONALIDADES DE UTILIZADORES
+
+ADMINISTRADOR
+- Pode criar utilizadores.
+- Pode visualizar a palavra-passe usada.
+- Pode mostrar ou ocultar palavras-passe.
+- Pode alterar o nome do utilizador.
+- Pode alterar a palavra-passe.
+- Pode alterar o nível entre admin e gerente.
+- Pode eliminar utilizadores.
+- Não pode eliminar o utilizador autenticado.
+- Não pode eliminar o último administrador.
+- Não pode transformar o último administrador em gerente.
+- Visualiza o campo Utilizadores.
+- Não visualiza o campo Definições.
+
+GERENTE
+- Não visualiza Utilizadores.
+- Visualiza Definições.
+- Pode alterar apenas a sua própria palavra-passe.
+
+TERMINAR SESSÃO
+- Limpa a sessão.
+- Volta para LoginApp sem fechar a aplicação.
+
+INSTALAÇÃO
+
+1. Copie a pasta src para a raiz do projeto.
+2. Copie app.css e login.css para src/main/resources.
+3. Execute sql/usuarios.sql no MySQL.
+4. Confirme que o pom.xml inicia a classe Launcher.
+5. Execute:
+
+mvn clean javafx:run
+
+CONTA INICIAL
+
+Utilizador: admin
+Palavra-passe: admin123
+
+SEGURANÇA
+
+A visualização de palavras-passe só funciona porque esta versão
+guarda as palavras-passe em texto simples. Para um sistema real,
+é recomendado utilizar BCrypt e substituir a visualização por uma
+função de reposição de palavra-passe.

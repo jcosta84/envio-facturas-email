@@ -1,0 +1,151 @@
+.login-root {
+    -fx-background-color: #10141d;
+    -fx-font-family: "Segoe UI";
+}
+
+.login-side-panel {
+    -fx-background-color: linear-gradient(
+        to bottom right,
+        #171d2a,
+        #10141d
+    );
+    -fx-border-color: transparent #283040 transparent transparent;
+    -fx-border-width: 0 1 0 0;
+}
+
+.login-brand-icon {
+    -fx-font-size: 52px;
+    -fx-text-fill: #6f63ff;
+    -fx-font-weight: bold;
+}
+
+.login-brand-title {
+    -fx-font-size: 31px;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+.login-brand-subtitle {
+    -fx-font-size: 15px;
+    -fx-text-fill: #aeb6c6;
+    -fx-line-spacing: 5px;
+}
+
+.login-resources {
+    -fx-padding: 30 0 0 0;
+}
+
+.login-feature-icon {
+    -fx-background-color: rgba(111, 99, 255, 0.18);
+    -fx-background-radius: 20px;
+    -fx-text-fill: #8f86ff;
+    -fx-font-weight: bold;
+    -fx-padding: 5 8 5 8;
+}
+
+.login-feature-text {
+    -fx-font-size: 14px;
+    -fx-text-fill: #d7dce7;
+}
+
+.login-version {
+    -fx-text-fill: #717a8c;
+    -fx-font-size: 12px;
+}
+
+.login-area {
+    -fx-background-color: #10141d;
+    -fx-padding: 45px;
+}
+
+.login-card {
+    -fx-background-color: #171d28;
+    -fx-background-radius: 18px;
+    -fx-border-color: #2b3444;
+    -fx-border-radius: 18px;
+    -fx-effect: dropshadow(
+        gaussian,
+        rgba(0, 0, 0, 0.35),
+        25,
+        0.20,
+        0,
+        8
+    );
+}
+
+.login-title {
+    -fx-font-size: 29px;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+.login-description {
+    -fx-font-size: 14px;
+    -fx-text-fill: #9da7b8;
+}
+
+.login-field-label {
+    -fx-font-size: 13px;
+    -fx-text-fill: #d8deea;
+    -fx-font-weight: bold;
+    -fx-padding: 8 0 2 0;
+}
+
+.login-field {
+    -fx-background-color: #101620;
+    -fx-background-radius: 9px;
+    -fx-border-color: #303a4b;
+    -fx-border-radius: 9px;
+    -fx-text-fill: white;
+    -fx-prompt-text-fill: #667085;
+    -fx-padding: 12px 14px;
+    -fx-font-size: 14px;
+}
+
+.login-field:focused {
+    -fx-border-color: #7167ff;
+    -fx-effect: dropshadow(
+        gaussian,
+        rgba(113, 103, 255, 0.25),
+        8,
+        0.15,
+        0,
+        0
+    );
+}
+
+.login-button {
+    -fx-background-color: linear-gradient(
+        to right,
+        #6559f5,
+        #7a6fff
+    );
+    -fx-background-radius: 9px;
+    -fx-text-fill: white;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-padding: 12px 18px;
+    -fx-cursor: hand;
+}
+
+.login-button:hover {
+    -fx-background-color: linear-gradient(
+        to right,
+        #7469ff,
+        #8a80ff
+    );
+}
+
+.login-button:disabled {
+    -fx-opacity: 0.65;
+}
+
+.login-message {
+    -fx-text-fill: #ff7b88;
+    -fx-font-size: 13px;
+    -fx-min-height: 22px;
+}
+
+.progress-indicator {
+    -fx-progress-color: #786dff;
+}
