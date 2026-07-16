@@ -74,8 +74,12 @@ public final class ConfigIni {
             {"DATABASE", "USERNAME"},
             {"DATABASE", "PASSWORD"},
             {"EMAIL", "REMETENTE"},
-            {"EMAIL", "SENHA_APP"},
-            {"EMAIL", "ASSUNTO"}
+            {"EMAIL", "USERNAME"},
+            {"EMAIL", "PASSWORD"},
+            {"EMAIL", "ASSUNTO"},
+            {"EMAIL", "SMTP_HOST"},
+            {"EMAIL", "SMTP_PORT"},
+            {"EMAIL", "SMTP_SEGURANCA"}
         };
 
         for (String[] item : obrigatorios) {
