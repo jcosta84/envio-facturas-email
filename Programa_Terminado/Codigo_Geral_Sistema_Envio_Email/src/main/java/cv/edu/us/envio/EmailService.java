@@ -128,9 +128,10 @@ public final class EmailService {
         mensagem.setFrom(
                 new InternetAddress(
                         remetente,
+                        "EDEC SUL",
                         StandardCharsets.UTF_8.name()
                 )
-        );
+                );
 
         mensagem.setRecipients(
                 Message.RecipientType.TO,
