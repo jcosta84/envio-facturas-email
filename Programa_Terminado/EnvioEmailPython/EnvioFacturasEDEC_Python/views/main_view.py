@@ -22,7 +22,7 @@ from services.export_service import exportar_excel, exportar_pdf
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
-class MainView(ctk.CTk):
+class MainView(ctk.CTkToplevel):
     BG = "#181A1D"
     SIDEBAR = "#111315"
     PANEL = "#24272A"
@@ -31,11 +31,24 @@ class MainView(ctk.CTk):
     ACTIVE = "#4B4F54"
     BLUE = "#4C8DFF"
 
-    def __init__(self, config, db, usuario):
-        super().__init__()
+    def __init__(
+        self,
+        config,
+        db,
+        usuario,
+        master=None,
+        ao_terminar_sessao=None,
+        ao_sair=None,
+    ):
+        super().__init__(master)
+
         self.config_service = config
         self.db = db
         self.usuario = usuario
+        self.ao_terminar_sessao = ao_terminar_sessao
+        self.ao_sair = ao_sair
+        self._fechando = False
+        self._relogio_after_id = None
         self.clientes = ClienteRepository(db)
         self.cc = CcRepository(db)
         self.conf = ConfiguracaoRepository(db)
@@ -50,6 +63,7 @@ class MainView(ctk.CTk):
         self.geometry("1280x760")
         self.minsize(1120, 700)
         self.configure(fg_color=self.BG)
+        self.protocol("WM_DELETE_WINDOW", self.sair)
         self.grid_columnconfigure(0, weight=0)
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
@@ -152,7 +166,7 @@ class MainView(ctk.CTk):
             height=38,
             fg_color="#34373B",
             hover_color="#45494E",
-            command=self.destroy,
+            command=self.sair,
         ).pack(side="bottom", fill="x", padx=18, pady=(0, 18))
         ctk.CTkButton(
             self.sidebar,
@@ -205,44 +219,40 @@ class MainView(ctk.CTk):
             sticky="e"
         )
 
-        # Aguarda a janela terminar de ser construída
-        self.after(200, self._atualizar_relogio)
+        # Guarda o identificador do after para permitir o cancelamento.
+        self._relogio_after_id = self.after(200, self._atualizar_relogio)
 
     def _atualizar_relogio(self):
+        if self._fechando:
+            return
+
         try:
             if not self.winfo_exists():
                 return
-
             if not hasattr(self, "label_data_hora"):
                 return
-
             if not self.label_data_hora.winfo_exists():
                 return
 
-            agora = datetime.now()
-
-            texto = agora.strftime(
-                "%d/%m/%Y  |  %H:%M:%S"
-            )
-
             self.label_data_hora.configure(
-                text=texto
+                text=datetime.now().strftime("%d/%m/%Y  |  %H:%M:%S")
             )
+            self._relogio_after_id = self.after(1000, self._atualizar_relogio)
 
-            self.after(
-                1000,
-                self._atualizar_relogio
-            )
-
-        except TclError:
-            # A janela ou o widget já foi fechado
-            return
-
+        except (TclError, RuntimeError):
+            self._relogio_after_id = None
         except Exception as erro:
-            print(
-                "Erro ao atualizar data e hora:",
-                erro
-            )
+            self._relogio_after_id = None
+            print("Erro ao atualizar data e hora:", erro)
+
+    def cancelar_relogio(self):
+        if self._relogio_after_id is None:
+            return
+        try:
+            self.after_cancel(self._relogio_after_id)
+        except (TclError, RuntimeError):
+            pass
+        self._relogio_after_id = None
 
     def limpar(self):
         for widget in self.content.winfo_children():
@@ -271,19 +281,37 @@ class MainView(ctk.CTk):
         return frame
 
     def terminar_sessao(self):
-        from views.login_view import LoginView
+        """Fecha a sessão atual e regressa à janela de login."""
+        if self._fechando:
+            return
 
-        self.destroy()
+        self._fechando = True
+        self.cancelar_relogio()
 
-        login = LoginView()
-        login.mainloop()
+        try:
+            self.destroy()
+        except (TclError, RuntimeError):
+            pass
+
+        if callable(self.ao_terminar_sessao):
+            self.ao_terminar_sessao()
 
     def sair(self):
-        """
-        Fecha completamente a aplicação.
-        """
-        self.quit()
-        self.destroy()
+        """Fecha completamente a aplicação."""
+        if self._fechando:
+            return
+
+        self._fechando = True
+        self.cancelar_relogio()
+
+        if callable(self.ao_sair):
+            self.ao_sair()
+            return
+
+        try:
+            self.destroy()
+        except (TclError, RuntimeError):
+            pass
 
     def _criar_tree(self, parent, colunas, widths=None, height=13):
         container = ctk.CTkFrame(parent, fg_color=self.PANEL, corner_radius=10)
@@ -824,20 +852,72 @@ class MainView(ctk.CTk):
 
     def pagina_usuarios(self):
         frame = self.pagina("Gestão de Utilizadores", scroll=False)
-        ctk.CTkLabel(frame, text="Crie e altere utilizadores, palavras-passe e níveis de acesso.").grid(row=1, column=0, sticky="w", pady=(0, 12))
+
+        ctk.CTkLabel(
+            frame,
+            text="Crie e altere utilizadores, e-mails, palavras-passe e níveis de acesso."
+        ).grid(row=1, column=0, sticky="w", pady=(0, 12))
+
         form = ctk.CTkFrame(frame, fg_color="transparent")
         form.grid(row=2, column=0, sticky="ew")
         form.grid_columnconfigure(1, weight=1)
+
         campos = {}
-        for row, nome in enumerate(("Utilizador", "Palavra-passe", "Confirmar")):
-            ctk.CTkLabel(form, text="{}:".format(nome)).grid(row=row, column=0, sticky="w", pady=6, padx=(0, 14))
-            entrada = ctk.CTkEntry(form, show="•" if nome != "Utilizador" else "", height=36)
-            entrada.grid(row=row, column=1, sticky="ew", pady=6)
+
+        for row, nome in enumerate(
+            ("Utilizador", "Email", "Palavra-passe", "Confirmar")
+        ):
+            ctk.CTkLabel(
+                form,
+                text="{}:".format(nome)
+            ).grid(
+                row=row,
+                column=0,
+                sticky="w",
+                pady=6,
+                padx=(0, 14)
+            )
+
+            ocultar = nome in ("Palavra-passe", "Confirmar")
+
+            entrada = ctk.CTkEntry(
+                form,
+                show="•" if ocultar else "",
+                height=36
+            )
+            entrada.grid(
+                row=row,
+                column=1,
+                sticky="ew",
+                pady=6
+            )
             campos[nome] = entrada
-        ctk.CTkLabel(form, text="Nível:").grid(row=3, column=0, sticky="w", pady=6)
-        nivel = ctk.CTkComboBox(form, values=["admin", "gerente"], state="readonly", height=36)
-        nivel.grid(row=3, column=1, sticky="ew", pady=6)
+
+        ctk.CTkLabel(
+            form,
+            text="Nível:"
+        ).grid(
+            row=4,
+            column=0,
+            sticky="w",
+            pady=6,
+            padx=(0, 14)
+        )
+
+        nivel = ctk.CTkComboBox(
+            form,
+            values=["admin", "gerente"],
+            state="readonly",
+            height=36
+        )
+        nivel.grid(
+            row=4,
+            column=1,
+            sticky="ew",
+            pady=6
+        )
         nivel.set("gerente")
+
         mostrar = ctk.BooleanVar(value=False)
 
         def alternar():
@@ -845,96 +925,316 @@ class MainView(ctk.CTk):
             campos["Palavra-passe"].configure(show=mascara)
             campos["Confirmar"].configure(show=mascara)
 
-        ctk.CTkCheckBox(form, text="Mostrar palavras-passe", variable=mostrar, command=alternar).grid(row=4, column=1, sticky="w", pady=6)
+        ctk.CTkCheckBox(
+            form,
+            text="Mostrar palavras-passe",
+            variable=mostrar,
+            command=alternar
+        ).grid(
+            row=5,
+            column=1,
+            sticky="w",
+            pady=6
+        )
+
         botoes = ctk.CTkFrame(frame, fg_color="transparent")
-        botoes.grid(row=3, column=0, sticky="w", pady=10)
-        holder, tree = self._criar_tree(frame, ("ID", "Utilizador", "Palavra-passe", "Nível"), [80, 220, 220, 150], 9)
-        holder.grid(row=4, column=0, sticky="nsew")
+        botoes.grid(
+            row=3,
+            column=0,
+            sticky="w",
+            pady=10
+        )
+
+        holder, tree = self._criar_tree(
+            frame,
+            ("ID", "Utilizador", "Email", "Palavra-passe", "Nível"),
+            [70, 190, 260, 170, 130],
+            9
+        )
+        holder.grid(
+            row=4,
+            column=0,
+            sticky="nsew"
+        )
         frame.grid_rowconfigure(4, weight=1)
+
         cache = {}
         selecionado = {"id": None}
 
         def limpar():
             selecionado["id"] = None
+
             for entrada in campos.values():
                 entrada.delete(0, "end")
+
             nivel.set("gerente")
-            tree.selection_remove(tree.selection())
+            mostrar.set(False)
+            alternar()
+
+            selecoes = tree.selection()
+            if selecoes:
+                tree.selection_remove(*selecoes)
+
+            campos["Utilizador"].focus_set()
 
         def carregar():
             cache.clear()
             tree.delete(*tree.get_children())
-            for usuario in self.usuarios.listar():
-                item = tree.insert("", "end", values=(usuario.id, usuario.username, "•" * len(usuario.password), usuario.nivel))
-                cache[item] = usuario
+
+            try:
+                for usuario in self.usuarios.listar():
+                    email_usuario = getattr(usuario, "email", "") or ""
+                    password_usuario = getattr(usuario, "password", "") or ""
+
+                    item = tree.insert(
+                        "",
+                        "end",
+                        values=(
+                            usuario.id,
+                            usuario.username,
+                            email_usuario,
+                            "•" * 8 if password_usuario else "",
+                            usuario.nivel
+                        )
+                    )
+                    cache[item] = usuario
+
+            except Exception as exc:
+                messagebox.showerror(
+                    "Erro",
+                    "Não foi possível carregar os utilizadores.\n\n{}".format(exc)
+                )
 
         def selecionar(_event=None):
-            sel = tree.selection()
-            if not sel:
+            selecao = tree.selection()
+
+            if not selecao:
                 return
-            usuario = cache[sel[0]]
+
+            usuario = cache.get(selecao[0])
+
+            if usuario is None:
+                return
+
             selecionado["id"] = usuario.id
+
             campos["Utilizador"].delete(0, "end")
-            campos["Utilizador"].insert(0, usuario.username)
+            campos["Utilizador"].insert(
+                0,
+                getattr(usuario, "username", "") or ""
+            )
+
+            campos["Email"].delete(0, "end")
+            campos["Email"].insert(
+                0,
+                getattr(usuario, "email", "") or ""
+            )
+
+            password_usuario = getattr(usuario, "password", "") or ""
+
             campos["Palavra-passe"].delete(0, "end")
-            campos["Palavra-passe"].insert(0, usuario.password)
+            campos["Palavra-passe"].insert(0, password_usuario)
+
             campos["Confirmar"].delete(0, "end")
-            campos["Confirmar"].insert(0, usuario.password)
-            nivel.set(usuario.nivel)
+            campos["Confirmar"].insert(0, password_usuario)
+
+            nivel.set(
+                getattr(usuario, "nivel", "gerente") or "gerente"
+            )
 
         def validar():
-            if not campos["Utilizador"].get().strip():
-                messagebox.showwarning("Validação", "Informe o utilizador.")
+            username = campos["Utilizador"].get().strip()
+            email_usuario = campos["Email"].get().strip()
+            password = campos["Palavra-passe"].get()
+            confirmacao = campos["Confirmar"].get()
+
+            if not username:
+                messagebox.showwarning(
+                    "Validação",
+                    "Informe o utilizador."
+                )
+                campos["Utilizador"].focus_set()
                 return False
-            if not campos["Palavra-passe"].get():
-                messagebox.showwarning("Validação", "Informe a palavra-passe.")
+
+            if not email_usuario:
+                messagebox.showwarning(
+                    "Validação",
+                    "Informe o e-mail do utilizador."
+                )
+                campos["Email"].focus_set()
                 return False
-            if campos["Palavra-passe"].get() != campos["Confirmar"].get():
-                messagebox.showwarning("Validação", "As palavras-passe não coincidem.")
+
+            if not EMAIL_RE.match(email_usuario):
+                messagebox.showwarning(
+                    "Validação",
+                    "Informe um endereço de e-mail válido."
+                )
+                campos["Email"].focus_set()
                 return False
+
+            if not password:
+                messagebox.showwarning(
+                    "Validação",
+                    "Informe a palavra-passe."
+                )
+                campos["Palavra-passe"].focus_set()
+                return False
+
+            if password != confirmacao:
+                messagebox.showwarning(
+                    "Validação",
+                    "As palavras-passe não coincidem."
+                )
+                campos["Confirmar"].focus_set()
+                return False
+
             return True
 
         def guardar():
             if not validar():
                 return
+
+            username = campos["Utilizador"].get().strip()
+            email_usuario = campos["Email"].get().strip()
+            password = campos["Palavra-passe"].get()
+            nivel_usuario = nivel.get()
+
             try:
-                self.usuarios.inserir(campos["Utilizador"].get(), campos["Palavra-passe"].get(), nivel.get())
+                self.usuarios.inserir(
+                    username,
+                    email_usuario,
+                    password,
+                    nivel_usuario
+                )
+
                 carregar()
                 limpar()
+
+                messagebox.showinfo(
+                    "Sucesso",
+                    "Utilizador guardado com sucesso."
+                )
+
             except Exception as exc:
-                messagebox.showerror("Erro", str(exc))
+                messagebox.showerror(
+                    "Erro",
+                    str(exc)
+                )
 
         def alterar():
-            if selecionado["id"] is None or not validar():
-                messagebox.showwarning("Seleção", "Selecione um utilizador.")
+            if selecionado["id"] is None:
+                messagebox.showwarning(
+                    "Seleção",
+                    "Selecione um utilizador."
+                )
                 return
+
+            if not validar():
+                return
+
+            username = campos["Utilizador"].get().strip()
+            email_usuario = campos["Email"].get().strip()
+            password = campos["Palavra-passe"].get()
+            nivel_usuario = nivel.get()
+
             try:
-                self.usuarios.atualizar(selecionado["id"], campos["Utilizador"].get(), campos["Palavra-passe"].get(), nivel.get())
+                self.usuarios.atualizar(
+                    selecionado["id"],
+                    username,
+                    email_usuario,
+                    password,
+                    nivel_usuario
+                )
+
                 carregar()
                 limpar()
+
+                messagebox.showinfo(
+                    "Sucesso",
+                    "Utilizador alterado com sucesso."
+                )
+
             except Exception as exc:
-                messagebox.showerror("Erro", str(exc))
+                messagebox.showerror(
+                    "Erro",
+                    str(exc)
+                )
 
         def eliminar():
             if selecionado["id"] is None:
+                messagebox.showwarning(
+                    "Seleção",
+                    "Selecione um utilizador."
+                )
                 return
-            if selecionado["id"] == self.usuario.id:
-                messagebox.showwarning("Operação", "Não pode eliminar o utilizador atualmente autenticado.")
-                return
-            if messagebox.askyesno("Confirmar", "Eliminar o utilizador selecionado?"):
-                try:
-                    self.usuarios.eliminar(selecionado["id"])
-                    carregar()
-                    limpar()
-                except Exception as exc:
-                    messagebox.showerror("Erro", str(exc))
 
-        ctk.CTkButton(botoes, text="Novo", command=limpar).pack(side="left", padx=(0, 8))
-        ctk.CTkButton(botoes, text="Guardar", command=guardar).pack(side="left", padx=8)
-        ctk.CTkButton(botoes, text="Alterar", command=alterar).pack(side="left", padx=8)
-        ctk.CTkButton(botoes, text="Eliminar", command=eliminar).pack(side="left", padx=8)
-        ctk.CTkButton(botoes, text="Limpar", command=limpar).pack(side="left", padx=8)
-        tree.bind("<<TreeviewSelect>>", selecionar)
+            if selecionado["id"] == self.usuario.id:
+                messagebox.showwarning(
+                    "Operação",
+                    "Não pode eliminar o utilizador atualmente autenticado."
+                )
+                return
+
+            if not messagebox.askyesno(
+                "Confirmar",
+                "Eliminar o utilizador selecionado?"
+            ):
+                return
+
+            try:
+                self.usuarios.eliminar(
+                    selecionado["id"]
+                )
+
+                carregar()
+                limpar()
+
+                messagebox.showinfo(
+                    "Sucesso",
+                    "Utilizador eliminado com sucesso."
+                )
+
+            except Exception as exc:
+                messagebox.showerror(
+                    "Erro",
+                    str(exc)
+                )
+
+        ctk.CTkButton(
+            botoes,
+            text="Novo",
+            command=limpar
+        ).pack(side="left", padx=(0, 8))
+
+        ctk.CTkButton(
+            botoes,
+            text="Guardar",
+            command=guardar
+        ).pack(side="left", padx=8)
+
+        ctk.CTkButton(
+            botoes,
+            text="Alterar",
+            command=alterar
+        ).pack(side="left", padx=8)
+
+        ctk.CTkButton(
+            botoes,
+            text="Eliminar",
+            command=eliminar
+        ).pack(side="left", padx=8)
+
+        ctk.CTkButton(
+            botoes,
+            text="Limpar",
+            command=limpar
+        ).pack(side="left", padx=8)
+
+        tree.bind(
+            "<<TreeviewSelect>>",
+            selecionar
+        )
+
         carregar()
 
     def pagina_definicoes(self):

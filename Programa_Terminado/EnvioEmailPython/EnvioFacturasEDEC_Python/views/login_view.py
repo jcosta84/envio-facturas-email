@@ -1,5 +1,6 @@
 import customtkinter as ctk
-from tkinter import messagebox
+from tkinter import TclError, messagebox
+
 from services.config_service import ConfigService
 from database.connection import Database
 from database.repositories import UsuarioRepository
@@ -8,10 +9,16 @@ from database.repositories import UsuarioRepository
 class LoginView(ctk.CTk):
     def __init__(self):
         super().__init__()
+
         self.title("Login — Sistema de Envio de E-mails")
         self.geometry("1000x650")
         self.minsize(900, 600)
         self.configure(fg_color="#0F141F")
+
+        self.main_view = None
+        self._fechando = False
+        self._focus_after_id = None
+        self.protocol("WM_DELETE_WINDOW", self.fechar_aplicacao)
 
         try:
             self.config_service = ConfigService()
@@ -19,8 +26,8 @@ class LoginView(ctk.CTk):
             self.db.testar()
             self.repo = UsuarioRepository(self.db)
         except Exception as exc:
-            messagebox.showerror("Erro de inicialização", str(exc))
-            self.after(100, self.destroy)
+            messagebox.showerror("Erro de inicialização", str(exc), parent=self)
+            self.after(100, self.fechar_aplicacao)
             return
 
         self.grid_columnconfigure(0, weight=43)
@@ -34,17 +41,20 @@ class LoginView(ctk.CTk):
 
         bloco = ctk.CTkFrame(left, fg_color="transparent")
         bloco.grid(row=0, column=0, padx=46, sticky="w")
+
         ctk.CTkLabel(bloco, text="✉", text_color="#7868FF", font=ctk.CTkFont(size=34)).pack(anchor="w")
         ctk.CTkLabel(bloco, text="Envio de E-mails", font=ctk.CTkFont(size=31, weight="bold")).pack(anchor="w", pady=(25, 10))
         ctk.CTkLabel(
             bloco,
             text="Gestão de clientes, documentos PDF,\nenvios e relatórios numa única aplicação.",
-            justify="left", text_color="#B9C4D6", font=ctk.CTkFont(size=15)
+            justify="left",
+            text_color="#B9C4D6",
+            font=ctk.CTkFont(size=15),
         ).pack(anchor="w")
 
-        for texto in ("Gestão de clientes", "Envio automático de PDFs", "Relatórios em Excel e PDF"):
+        for indice, texto in enumerate(("Gestão de clientes", "Envio automático de PDFs", "Relatórios em Excel e PDF")):
             linha = ctk.CTkFrame(bloco, fg_color="transparent")
-            linha.pack(anchor="w", pady=(22 if texto == "Gestão de clientes" else 8, 0))
+            linha.pack(anchor="w", pady=(22 if indice == 0 else 8, 0))
             ctk.CTkLabel(linha, text="✓", width=28, height=28, corner_radius=14, fg_color="#27265D", text_color="#8B83FF").pack(side="left")
             ctk.CTkLabel(linha, text=texto, font=ctk.CTkFont(size=14)).pack(side="left", padx=12)
 
@@ -62,17 +72,29 @@ class LoginView(ctk.CTk):
         ctk.CTkLabel(card, text="Bem-vindo", font=ctk.CTkFont(size=31, weight="bold")).pack(anchor="w", padx=40, pady=(42, 6))
         ctk.CTkLabel(card, text="Introduza os seus dados para continuar.", text_color="#9CACCA").pack(anchor="w", padx=40, pady=(0, 34))
         ctk.CTkLabel(card, text="Utilizador", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=40)
+
         self.user = ctk.CTkEntry(card, placeholder_text="Nome de utilizador", width=308, height=44, corner_radius=9)
         self.user.pack(padx=40, pady=(8, 22))
+
         ctk.CTkLabel(card, text="Palavra-passe", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=40)
         self.pwd = ctk.CTkEntry(card, placeholder_text="Palavra-passe", show="•", width=308, height=44, corner_radius=9)
         self.pwd.pack(padx=40, pady=(8, 12))
+
         self.msg = ctk.CTkLabel(card, text="", text_color="#FF7B7B")
         self.msg.pack(padx=40, anchor="w")
+
         ctk.CTkButton(card, text="Entrar", width=274, height=45, font=ctk.CTkFont(size=14, weight="bold"), command=self.entrar).pack(pady=(25, 0))
 
         self.bind("<Return>", lambda _event: self.entrar())
-        self.after(200, self.user.focus_set)
+        self._focus_after_id = self.after(200, self._focar_utilizador)
+
+    def _focar_utilizador(self):
+        self._focus_after_id = None
+        try:
+            if self.winfo_exists():
+                self.user.focus_set()
+        except (TclError, RuntimeError):
+            pass
 
     def entrar(self):
         username = self.user.get().strip()
@@ -82,26 +104,76 @@ class LoginView(ctk.CTk):
             self.msg.configure(text="Preencha o utilizador e a palavra-passe.")
             return
 
+        self.msg.configure(text="")
+
         try:
             usuario = self.repo.autenticar(username, password)
         except Exception as exc:
-            messagebox.showerror("Erro", str(exc))
+            messagebox.showerror("Erro", str(exc), parent=self)
             return
 
         if not usuario:
             self.msg.configure(text="Dados inválidos ou conta indisponível.")
             return
 
+        self.abrir_aplicacao(usuario)
+
+    def abrir_aplicacao(self, usuario):
         from views.main_view import MainView
 
-        # Fecha definitivamente o Login
-        self.destroy()
+        self.withdraw()
 
-        # Abre a aplicação principal
-        app = MainView(
-            self.config_service,
-            self.db,
-            usuario
-        )
+        try:
+            self.main_view = MainView(
+                self.config_service,
+                self.db,
+                usuario,
+                master=self,
+                ao_terminar_sessao=self.voltar_login,
+                ao_sair=self.fechar_aplicacao,
+            )
+            self.main_view.focus_force()
+        except Exception as exc:
+            self.main_view = None
+            self.deiconify()
+            messagebox.showerror("Erro", f"Não foi possível abrir a aplicação.\n\n{exc}", parent=self)
 
-        app.mainloop()
+    def voltar_login(self):
+        if self._fechando:
+            return
+
+        self.main_view = None
+        self.user.delete(0, "end")
+        self.pwd.delete(0, "end")
+        self.msg.configure(text="")
+        self.deiconify()
+        self.lift()
+        self.focus_force()
+        self._focus_after_id = self.after(100, self._focar_utilizador)
+
+    def fechar_aplicacao(self):
+        if self._fechando:
+            return
+
+        self._fechando = True
+
+        if self._focus_after_id is not None:
+            try:
+                self.after_cancel(self._focus_after_id)
+            except (TclError, RuntimeError):
+                pass
+            self._focus_after_id = None
+
+        try:
+            if self.main_view is not None:
+                self.main_view.cancelar_relogio()
+                self.main_view.destroy()
+        except (TclError, RuntimeError, AttributeError):
+            pass
+
+        self.main_view = None
+
+        try:
+            self.destroy()
+        except (TclError, RuntimeError):
+            pass

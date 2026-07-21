@@ -16,14 +16,17 @@ class Usuario:
     username: str
     password: str
     nivel: str
+    email: str = ""
+    nome: str = ""
+    estado: str = "ativo"
 
     @property
-    def is_admin(self) -> bool:
-        return self.nivel.lower() in {"admin", "administrador"}
+    def is_admin(self):
+        return self.nivel == "admin"
 
     @property
-    def is_gerente(self) -> bool:
-        return self.nivel.lower() == "gerente"
+    def is_gerente(self):
+        return self.nivel == "gerente"
 
 
 @dataclass
