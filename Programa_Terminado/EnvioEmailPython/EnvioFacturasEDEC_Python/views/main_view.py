@@ -1381,9 +1381,9 @@ class MainView(ctk.CTkToplevel):
             command=limpar_campos,
         ).pack(side="left", padx=6)
 
-        ctk.CTkLabel(
-            frame,
-            text="As ligações à base de dados e ao SMTP continuam configuradas no ficheiro config.ini.",
-            text_color="#AEB6C2",
-            font=ctk.CTkFont(size=13),
-        ).grid(row=4, column=0, sticky="w", pady=(8, 0))
+        ##ctk.CTkLabel(
+        ##    frame,
+        ##    text="As ligações à base de dados e ao SMTP continuam configuradas no ficheiro config.ini.",
+        ##    text_color="#AEB6C2",
+        ##    font=ctk.CTkFont(size=13),
+        ##).grid(row=4, column=0, sticky="w", pady=(8, 0))
