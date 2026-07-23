@@ -315,6 +315,29 @@ class UsuarioRepository:
             conn.commit()
             return cur.rowcount > 0
 
+    def alterar_palavra_passe(self, id_usuario, palavra_passe_atual, nova_palavra_passe):
+        """Altera a palavra-passe apenas quando a palavra-passe atual está correta."""
+        with self.db.conectar() as conn:
+            cur = conn.cursor(dictionary=True)
+            cur.execute(
+                "SELECT password FROM usuarios WHERE id = %s LIMIT 1",
+                (id_usuario,),
+            )
+            registo = cur.fetchone()
+
+            if not registo:
+                return False, "Utilizador não encontrado."
+
+            if registo["password"] != palavra_passe_atual:
+                return False, "A palavra-passe atual está incorreta."
+
+            cur.execute(
+                "UPDATE usuarios SET password = %s WHERE id = %s",
+                (nova_palavra_passe, id_usuario),
+            )
+            conn.commit()
+            return True, "Palavra-passe alterada com sucesso."
+
     def eliminar(self, id_):
         with self.db.conectar() as conn:
             cur = conn.cursor()

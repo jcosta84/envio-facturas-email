@@ -1239,8 +1239,151 @@ class MainView(ctk.CTkToplevel):
 
     def pagina_definicoes(self):
         frame = self.pagina("Definições")
+
         ctk.CTkLabel(
             frame,
-            text="As ligações à base de dados e ao SMTP são configuradas no ficheiro config.ini.",
+            text="Nesta área pode alterar a palavra-passe da sua conta.",
             font=ctk.CTkFont(size=15),
-        ).grid(row=1, column=0, sticky="w")
+        ).grid(row=1, column=0, sticky="w", pady=(0, 16))
+
+        card = ctk.CTkFrame(
+            frame,
+            fg_color=self.PANEL,
+            corner_radius=12,
+            border_width=1,
+            border_color=self.BORDER,
+        )
+        card.grid(row=2, column=0, sticky="ew")
+        card.grid_columnconfigure(1, weight=1)
+
+        campos = {}
+        dados = [
+            ("Palavra-passe atual", "Introduza a palavra-passe atual"),
+            ("Nova palavra-passe", "Introduza a nova palavra-passe"),
+            ("Confirmar nova palavra-passe", "Repita a nova palavra-passe"),
+        ]
+
+        for linha, (rotulo, placeholder) in enumerate(dados):
+            ctk.CTkLabel(
+                card,
+                text=rotulo,
+                font=ctk.CTkFont(weight="bold"),
+            ).grid(row=linha, column=0, padx=18, pady=12, sticky="w")
+
+            entrada = ctk.CTkEntry(
+                card,
+                placeholder_text=placeholder,
+                show="•",
+                height=40,
+            )
+            entrada.grid(row=linha, column=1, padx=18, pady=12, sticky="ew")
+            campos[rotulo] = entrada
+
+        mostrar = ctk.BooleanVar(value=False)
+
+        def alternar_visibilidade():
+            caractere = "" if mostrar.get() else "•"
+            for entrada in campos.values():
+                entrada.configure(show=caractere)
+
+        ctk.CTkCheckBox(
+            card,
+            text="Mostrar palavras-passe",
+            variable=mostrar,
+            command=alternar_visibilidade,
+        ).grid(row=3, column=1, padx=18, pady=(2, 12), sticky="w")
+
+        def limpar_campos():
+            for entrada in campos.values():
+                entrada.delete(0, "end")
+            campos["Palavra-passe atual"].focus_set()
+
+        def alterar_palavra_passe():
+            atual = campos["Palavra-passe atual"].get()
+            nova = campos["Nova palavra-passe"].get()
+            confirmar = campos["Confirmar nova palavra-passe"].get()
+
+            if not atual or not nova or not confirmar:
+                messagebox.showwarning(
+                    "Validação",
+                    "Preencha todos os campos.",
+                    parent=self,
+                )
+                return
+
+            if len(nova) < 8:
+                messagebox.showwarning(
+                    "Validação",
+                    "A nova palavra-passe deve ter pelo menos 8 caracteres.",
+                    parent=self,
+                )
+                campos["Nova palavra-passe"].focus_set()
+                return
+
+            if nova != confirmar:
+                messagebox.showwarning(
+                    "Validação",
+                    "A nova palavra-passe e a confirmação não coincidem.",
+                    parent=self,
+                )
+                campos["Confirmar nova palavra-passe"].focus_set()
+                return
+
+            if atual == nova:
+                messagebox.showwarning(
+                    "Validação",
+                    "A nova palavra-passe deve ser diferente da atual.",
+                    parent=self,
+                )
+                return
+
+            try:
+                sucesso, mensagem = self.usuarios.alterar_palavra_passe(
+                    self.usuario.id,
+                    atual,
+                    nova,
+                )
+
+                if not sucesso:
+                    messagebox.showerror("Erro", mensagem, parent=self)
+                    campos["Palavra-passe atual"].focus_set()
+                    return
+
+                self.usuario.password = nova
+                self.aud.log(
+                    self.usuario.id,
+                    "ALTERAR_PALAVRA_PASSE",
+                    "Definições",
+                    "O utilizador alterou a palavra-passe da própria conta.",
+                )
+                limpar_campos()
+                messagebox.showinfo("Sucesso", mensagem, parent=self)
+
+            except Exception as exc:
+                messagebox.showerror("Erro", str(exc), parent=self)
+
+        botoes = ctk.CTkFrame(frame, fg_color="transparent")
+        botoes.grid(row=3, column=0, sticky="e", pady=14)
+
+        ctk.CTkButton(
+            botoes,
+            text="Alterar palavra-passe",
+            width=190,
+            command=alterar_palavra_passe,
+        ).pack(side="left", padx=6)
+
+        ctk.CTkButton(
+            botoes,
+            text="Limpar",
+            width=120,
+            fg_color="#3B3F44",
+            hover_color="#4A4E53",
+            command=limpar_campos,
+        ).pack(side="left", padx=6)
+
+        ctk.CTkLabel(
+            frame,
+            text="As ligações à base de dados e ao SMTP continuam configuradas no ficheiro config.ini.",
+            text_color="#AEB6C2",
+            font=ctk.CTkFont(size=13),
+        ).grid(row=4, column=0, sticky="w", pady=(8, 0))
