@@ -1,6 +1,8 @@
 import re
 import threading
 from datetime import datetime
+
+from tkcalendar import DateEntry
 from pathlib import Path
 from tkinter import TclError, filedialog, messagebox, ttk
 from typing import Dict, List, Optional
@@ -20,6 +22,30 @@ from services.email_service import EmailService
 from services.export_service import exportar_excel, exportar_pdf
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def separar_emails(texto: str) -> List[str]:
+    """
+    Separa uma lista de e-mails introduzida com vírgula ou ponto e vírgula.
+    Remove espaços e endereços repetidos, mantendo a ordem.
+    """
+    emails = []
+    for valor in re.split(r"[;,]", texto or ""):
+        email = valor.strip()
+        if email and email not in emails:
+            emails.append(email)
+    return emails
+
+
+def validar_emails(texto: str) -> bool:
+    """Valida um ou vários endereços de e-mail."""
+    emails = separar_emails(texto)
+    return bool(emails) and all(EMAIL_RE.fullmatch(email) for email in emails)
+
+
+def normalizar_emails(texto: str) -> str:
+    """Guarda os endereços separados por vírgula."""
+    return ", ".join(separar_emails(texto))
 
 
 class MainView(ctk.CTkToplevel):
@@ -519,13 +545,19 @@ class MainView(ctk.CTkToplevel):
                 entradas["Nome"].focus_set()
                 return
 
-            if not EMAIL_RE.match(email):
+            if not validar_emails(email):
                 messagebox.showwarning(
                     "Validação",
-                    "Informe um endereço de e-mail válido."
+                    "Informe um ou mais endereços de e-mail válidos.\n\n"
+                    "Separe os endereços por vírgula ou ponto e vírgula.\n\n"
+                    "Exemplo:\n"
+                    "email1@gmail.com; email2@hotmail.com"
                 )
                 entradas["E-mail"].focus_set()
                 return
+
+            # Normaliza os endereços antes de guardar na base de dados.
+            email = normalizar_emails(email)
 
             cliente = Cliente(
                 cil=cil,
@@ -606,7 +638,7 @@ class MainView(ctk.CTkToplevel):
         frame.grid_rowconfigure(2, weight=1)
         barra = ctk.CTkFrame(frame, fg_color="transparent")
         barra.grid(row=3, column=0, sticky="ew", pady=12)
-        novo_email = ctk.CTkEntry(barra, placeholder_text="Novo e-mail", width=280)
+        novo_email = ctk.CTkEntry(barra, placeholder_text="Novo(s) e-mail(s), separados por ; ou ,", width=360)
         novo_email.pack(side="left")
         cache = {}
 
@@ -625,12 +657,36 @@ class MainView(ctk.CTkToplevel):
         def atualizar_email():
             selecao = tree.selection()
             email = novo_email.get().strip()
-            if not selecao or not EMAIL_RE.match(email):
-                messagebox.showwarning("Validação", "Selecione um cliente e introduza um e-mail válido.")
+
+            if not selecao:
+                messagebox.showwarning(
+                    "Validação",
+                    "Selecione um cliente."
+                )
                 return
+
+            if not validar_emails(email):
+                messagebox.showwarning(
+                    "Validação",
+                    "Introduza um ou mais endereços de e-mail válidos.\n\n"
+                    "Separe os endereços por vírgula ou ponto e vírgula."
+                )
+                novo_email.focus_set()
+                return
+
+            email = normalizar_emails(email)
             cliente = cache[selecao[0]]
+
             try:
-                self.clientes.atualizar(cliente.cil, Cliente(cliente.cil, cliente.nome, email, cliente.arquivo_anexo))
+                self.clientes.atualizar(
+                    cliente.cil,
+                    Cliente(
+                        cliente.cil,
+                        cliente.nome,
+                        email,
+                        cliente.arquivo_anexo
+                    )
+                )
                 carregar()
                 novo_email.delete(0, "end")
             except Exception as exc:
@@ -807,24 +863,50 @@ class MainView(ctk.CTkToplevel):
         frame = self.pagina("Relatório de Envios", scroll=False)
         filtros = ctk.CTkFrame(frame, fg_color="transparent")
         filtros.grid(row=1, column=0, sticky="w", pady=(0, 10))
+        hoje = datetime.now().date()
+
         ctk.CTkLabel(filtros, text="Início:").pack(side="left", padx=(0, 6))
-        inicio = ctk.CTkEntry(filtros, placeholder_text="dd/mm/aaaa", width=150)
-        inicio.pack(side="left", padx=(0, 16))
+        inicio = DateEntry(
+            filtros,
+            width=13,
+            date_pattern="dd/mm/yyyy",
+            locale="pt_PT",
+            firstweekday="monday",
+            selectmode="day",
+            maxdate=hoje,
+        )
+        inicio.set_date(hoje)
+        inicio.pack(side="left", padx=(0, 16), ipady=5)
+
         ctk.CTkLabel(filtros, text="Fim:").pack(side="left", padx=(0, 6))
-        fim = ctk.CTkEntry(filtros, placeholder_text="dd/mm/aaaa", width=150)
-        fim.pack(side="left", padx=(0, 16))
+        fim = DateEntry(
+            filtros,
+            width=13,
+            date_pattern="dd/mm/yyyy",
+            locale="pt_PT",
+            firstweekday="monday",
+            selectmode="day",
+            maxdate=hoje,
+        )
+        fim.set_date(hoje)
+        fim.pack(side="left", padx=(0, 16), ipady=5)
         holder, tree = self._criar_tree(frame, ("Data", "Nome", "Email", "CIL", "Status", "Mensagem"), [140, 150, 200, 100, 90, 310], 12)
         holder.grid(row=2, column=0, sticky="nsew")
         frame.grid_rowconfigure(2, weight=1)
         cache: List[RelatorioEnvio] = []
 
         def carregar():
-            try:
-                data_inicio = self._parse_data(inicio.get())
-                data_fim = self._parse_data(fim.get())
-            except ValueError:
-                messagebox.showwarning("Data", "Utilize o formato dd/mm/aaaa.")
+            data_inicio = inicio.get_date()
+            data_fim = fim.get_date()
+
+            if data_inicio > data_fim:
+                messagebox.showwarning(
+                    "Período inválido",
+                    "A data de início não pode ser posterior à data de fim.",
+                    parent=self,
+                )
                 return
+
             tree.delete(*tree.get_children())
             cache[:] = list(self.relatorios.listar(data_inicio, data_fim))
             for rel in cache:
@@ -1380,10 +1462,3 @@ class MainView(ctk.CTkToplevel):
             hover_color="#4A4E53",
             command=limpar_campos,
         ).pack(side="left", padx=6)
-
-        ##ctk.CTkLabel(
-        ##    frame,
-        ##    text="As ligações à base de dados e ao SMTP continuam configuradas no ficheiro config.ini.",
-        ##    text_color="#AEB6C2",
-        ##    font=ctk.CTkFont(size=13),
-        ##).grid(row=4, column=0, sticky="w", pady=(8, 0))
