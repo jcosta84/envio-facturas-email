@@ -631,82 +631,28 @@ class MainView(ctk.CTkToplevel):
 
     def pagina_consulta(self):
         frame = self.pagina("Consulta e CRUD de Clientes", scroll=False)
-
-        busca = ctk.CTkEntry(
-            frame,
-            placeholder_text="Filtrar por CIL, nome ou e-mail",
-            height=38,
-        )
+        busca = ctk.CTkEntry(frame, placeholder_text="Filtrar por CIL, nome ou e-mail", height=38)
         busca.grid(row=1, column=0, sticky="ew", pady=(0, 10))
-
-        holder, tree = self._criar_tree(
-            frame,
-            ("CIL", "Nome", "E-mail", "Anexo"),
-            [125, 190, 300, 180],
-            12,
-        )
+        holder, tree = self._criar_tree(frame, ("CIL", "Nome", "E-mail", "Anexo"), [125, 190, 240, 180], 12)
         holder.grid(row=2, column=0, sticky="nsew")
         frame.grid_rowconfigure(2, weight=1)
-
         barra = ctk.CTkFrame(frame, fg_color="transparent")
         barra.grid(row=3, column=0, sticky="ew", pady=12)
-
-        novo_email = ctk.CTkEntry(
-            barra,
-            placeholder_text="Novo(s) e-mail(s), separados por ; ou ,",
-            width=360,
-        )
+        novo_email = ctk.CTkEntry(barra, placeholder_text="Novo(s) e-mail(s), separados por ; ou ,", width=360)
         novo_email.pack(side="left")
-
         cache = {}
 
         def carregar(*_):
             cache.clear()
             tree.delete(*tree.get_children())
-
             termo = busca.get().strip().lower()
-
             try:
                 for cliente in self.clientes.listar():
-                    texto = "{} {} {}".format(
-                        cliente.cil,
-                        cliente.nome,
-                        cliente.email,
-                    ).lower()
-
-                    if termo in texto:
-                        item = tree.insert(
-                            "",
-                            "end",
-                            values=(
-                                cliente.cil,
-                                cliente.nome,
-                                cliente.email,
-                                cliente.arquivo_anexo,
-                            ),
-                        )
+                    if termo in "{} {} {}".format(cliente.cil, cliente.nome, cliente.email).lower():
+                        item = tree.insert("", "end", values=(cliente.cil, cliente.nome, cliente.email, cliente.arquivo_anexo))
                         cache[item] = cliente
-
             except Exception as exc:
-                messagebox.showerror(
-                    "Erro",
-                    "Não foi possível carregar os clientes.\n\n{}".format(exc),
-                    parent=self,
-                )
-
-        def selecionar(_event=None):
-            selecao = tree.selection()
-
-            if not selecao:
-                return
-
-            cliente = cache.get(selecao[0])
-
-            if cliente is None:
-                return
-
-            novo_email.delete(0, "end")
-            novo_email.insert(0, getattr(cliente, "email", "") or "")
+                messagebox.showerror("Erro", str(exc))
 
         def atualizar_email():
             selecao = tree.selection()
@@ -715,8 +661,7 @@ class MainView(ctk.CTkToplevel):
             if not selecao:
                 messagebox.showwarning(
                     "Validação",
-                    "Selecione um cliente.",
-                    parent=self,
+                    "Selecione um cliente."
                 )
                 return
 
@@ -724,19 +669,13 @@ class MainView(ctk.CTkToplevel):
                 messagebox.showwarning(
                     "Validação",
                     "Introduza um ou mais endereços de e-mail válidos.\n\n"
-                    "Separe os endereços por vírgula ou ponto e vírgula.\n\n"
-                    "Exemplo:\n"
-                    "email1@gmail.com; email2@hotmail.com",
-                    parent=self,
+                    "Separe os endereços por vírgula ou ponto e vírgula."
                 )
                 novo_email.focus_set()
                 return
 
             email = normalizar_emails(email)
-            cliente = cache.get(selecao[0])
-
-            if cliente is None:
-                return
+            cliente = cache[selecao[0]]
 
             try:
                 self.clientes.atualizar(
@@ -745,214 +684,29 @@ class MainView(ctk.CTkToplevel):
                         cliente.cil,
                         cliente.nome,
                         email,
-                        cliente.arquivo_anexo,
-                    ),
+                        cliente.arquivo_anexo
+                    )
                 )
-
-                self.aud.log(
-                    self.usuario.id,
-                    "ALTERAR",
-                    "Clientes",
-                    "E-mail do cliente {} atualizado.".format(cliente.cil),
-                )
-
                 carregar()
                 novo_email.delete(0, "end")
-
-                messagebox.showinfo(
-                    "Sucesso",
-                    "E-mail do cliente atualizado com sucesso.",
-                    parent=self,
-                )
-
             except Exception as exc:
-                messagebox.showerror(
-                    "Erro",
-                    "Não foi possível atualizar o cliente.\n\n{}".format(exc),
-                    parent=self,
-                )
+                messagebox.showerror("Erro", str(exc))
 
         def eliminar():
             selecao = tree.selection()
-
             if not selecao:
-                messagebox.showwarning(
-                    "Seleção",
-                    "Selecione um cliente.",
-                    parent=self,
-                )
                 return
+            cliente = cache[selecao[0]]
+            if messagebox.askyesno("Confirmar", "Eliminar o cliente {}?".format(cliente.cil)):
+                try:
+                    self.clientes.eliminar(cliente.cil)
+                    carregar()
+                except Exception as exc:
+                    messagebox.showerror("Erro", str(exc))
 
-            cliente = cache.get(selecao[0])
-
-            if cliente is None:
-                return
-
-            if not messagebox.askyesno(
-                "Confirmar",
-                "Eliminar o cliente {}?".format(cliente.cil),
-                parent=self,
-            ):
-                return
-
-            try:
-                self.clientes.eliminar(cliente.cil)
-
-                self.aud.log(
-                    self.usuario.id,
-                    "ELIMINAR",
-                    "Clientes",
-                    "Cliente {} eliminado.".format(cliente.cil),
-                )
-
-                carregar()
-                novo_email.delete(0, "end")
-
-                messagebox.showinfo(
-                    "Sucesso",
-                    "Cliente eliminado com sucesso.",
-                    parent=self,
-                )
-
-            except Exception as exc:
-                messagebox.showerror(
-                    "Erro",
-                    "Não foi possível eliminar o cliente.\n\n{}".format(exc),
-                    parent=self,
-                )
-
-        def exportar_clientes_excel():
-            """Exporta para Excel os clientes atualmente apresentados na tabela."""
-            clientes = list(cache.values())
-
-            if not clientes:
-                messagebox.showwarning(
-                    "Exportação",
-                    "Não existem clientes para exportar.",
-                    parent=self,
-                )
-                return
-
-            caminho = filedialog.asksaveasfilename(
-                parent=self,
-                title="Exportar lista de clientes para Excel",
-                defaultextension=".xlsx",
-                filetypes=[("Ficheiro Excel", "*.xlsx")],
-                initialfile="Lista_Clientes.xlsx",
-            )
-
-            if not caminho:
-                return
-
-            try:
-                from openpyxl import Workbook
-                from openpyxl.styles import Font, Alignment
-                from openpyxl.utils import get_column_letter
-
-                workbook = Workbook()
-                worksheet = workbook.active
-                worksheet.title = "Clientes"
-
-                cabecalho = [
-                    "CIL",
-                    "Nome",
-                    "E-mail",
-                    "Anexo",
-                ]
-
-                worksheet.append(cabecalho)
-
-                for celula in worksheet[1]:
-                    celula.font = Font(bold=True)
-                    celula.alignment = Alignment(
-                        horizontal="center",
-                        vertical="center",
-                    )
-
-                for cliente in clientes:
-                    worksheet.append(
-                        [
-                            cliente.cil,
-                            cliente.nome,
-                            cliente.email,
-                            cliente.arquivo_anexo,
-                        ]
-                    )
-
-                # Formatação das células e larguras.
-                for row in worksheet.iter_rows(min_row=2):
-                    for celula in row:
-                        celula.alignment = Alignment(
-                            vertical="center",
-                            wrap_text=True,
-                        )
-
-                larguras = {
-                    1: 18,
-                    2: 40,
-                    3: 55,
-                    4: 30,
-                }
-
-                for indice, largura in larguras.items():
-                    worksheet.column_dimensions[
-                        get_column_letter(indice)
-                    ].width = largura
-
-                worksheet.freeze_panes = "A2"
-                worksheet.auto_filter.ref = worksheet.dimensions
-                worksheet.sheet_view.showGridLines = False
-
-                workbook.save(caminho)
-
-                messagebox.showinfo(
-                    "Exportação concluída",
-                    "A lista de clientes foi exportada com sucesso.\n\n"
-                    "Clientes exportados: {}\n"
-                    "Ficheiro: {}".format(
-                        len(clientes),
-                        caminho,
-                    ),
-                    parent=self,
-                )
-
-            except ImportError:
-                messagebox.showerror(
-                    "Biblioteca em falta",
-                    "A biblioteca openpyxl não está instalada.\n\n"
-                    "Execute no ambiente virtual:\n\n"
-                    r".\.venv\Scripts\python.exe -m pip install openpyxl",
-                    parent=self,
-                )
-
-            except Exception as exc:
-                messagebox.showerror(
-                    "Erro na exportação",
-                    "Não foi possível criar o ficheiro Excel.\n\n{}".format(exc),
-                    parent=self,
-                )
-
-        ctk.CTkButton(
-            barra,
-            text="Atualizar e-mail",
-            command=atualizar_email,
-        ).pack(side="left", padx=10)
-
-        ctk.CTkButton(
-            barra,
-            text="Eliminar",
-            command=eliminar,
-        ).pack(side="left", padx=(0, 10))
-
-        ctk.CTkButton(
-            barra,
-            text="Exportar Excel",
-            command=exportar_clientes_excel,
-        ).pack(side="left")
-
-        tree.bind("<<TreeviewSelect>>", selecionar)
+        ctk.CTkButton(barra, text="Atualizar e-mail", command=atualizar_email).pack(side="left", padx=10)
+        ctk.CTkButton(barra, text="Eliminar", command=eliminar).pack(side="left")
         busca.bind("<KeyRelease>", carregar)
-
         carregar()
 
     def pagina_envio(self):
